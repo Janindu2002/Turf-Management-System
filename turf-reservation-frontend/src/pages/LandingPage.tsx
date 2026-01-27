@@ -1,21 +1,10 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Calendar, Search, Clock, CheckCircle2 } from "lucide-react";
-import client from "../api/client.ts";
+import availabilityAPI from "../api/availability.ts";
 import { useAuth } from "@/context/AuthContext";
 import logo from "../assets/logo.jpeg";
-
-/* =======================
-   Types
-======================= */
-type SlotStatus = "available" | "booked";
-
-interface TimeSlot {
-    id: number;
-    start_time: string;
-    end_time: string;
-    status: SlotStatus;
-}
+import type { Timeslot } from "../types";
 
 /* =======================
    Component
@@ -25,10 +14,16 @@ export default function LandingPage() {
     useAuth();
 
     const [date, setDate] = useState("");
-    const [slots, setSlots] = useState<TimeSlot[]>([]);
+    const [slots, setSlots] = useState<Timeslot[]>([]);
     const [selectedSlotId, setSelectedSlotId] = useState<number | null>(null);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
+
+    // Set initial date to empty so slots are hidden on load
+    useEffect(() => {
+        // We don't fetch automatically anymore to keep slots hidden until user interaction
+        setDate("");
+    }, []);
 
     /* =======================
        Helpers
@@ -42,19 +37,16 @@ export default function LandingPage() {
     /* =======================
        API
     ======================= */
-    const fetchSlots = async () => {
-        if (!date) {
-            setError("Please select a date first.");
-            return;
-        }
+    const fetchSlots = async (selectedDate: string) => {
+        if (!selectedDate) return;
 
         setLoading(true);
         setError(null);
         setSelectedSlotId(null);
 
         try {
-            const res = await client.get(`/api/availability?date=${date}`);
-            setSlots(res.data);
+            const data = await availabilityAPI.getAvailability(selectedDate);
+            setSlots(data);
         } catch (err) {
             console.error(err);
             setError("Failed to load slots. Please try again.");
@@ -128,16 +120,18 @@ export default function LandingPage() {
                                 type="date"
                                 value={date}
                                 onChange={(e) => {
-                                    setDate(e.target.value);
+                                    const newDate = e.target.value;
+                                    setDate(newDate);
                                     if (error) setError(null);
+                                    fetchSlots(newDate);
                                 }}
                                 className="w-full pl-10 py-3 border rounded-xl bg-gray-50"
                             />
                         </div>
 
                         <button
-                            onClick={fetchSlots}
-                            disabled={loading}
+                            onClick={() => fetchSlots(date)}
+                            disabled={loading || !date}
                             className="w-full sm:w-auto bg-gray-900 text-white px-8 py-3 rounded-xl font-bold flex items-center justify-center gap-2 whitespace-nowrap hover:bg-gray-800 transition-colors"
                         >
                             {loading ? "Loading..." : <><Search className="w-4 h-4" /> Show Slots</>}
@@ -152,34 +146,72 @@ export default function LandingPage() {
                     )}
 
                     {/* Slots Grid */}
-                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
-                        {slots.length === 0 && !loading && !error && (
-                            <p className="col-span-full text-center text-gray-500 py-8">
-                                Select a date to view available time slots.
-                            </p>
+                    <div className="space-y-8">
+                        {!date && !loading && (
+                            <div className="flex flex-col items-center justify-center py-12 text-gray-400">
+                                <Search className="w-12 h-12 mb-4 opacity-20" />
+                                <p className="text-lg font-medium">Pick a date to see available slots</p>
+                                <p className="text-sm">We'll show you exactly what's open for booking</p>
+                            </div>
                         )}
 
-                        {slots.map((slot) => {
-                            const selected = selectedSlotId === slot.id;
-                            const disabled = slot.status === "booked";
+                        {date && slots.length === 0 && !loading && !error && (
+                            <div className="text-center py-12 bg-gray-50 rounded-xl border-2 border-dashed border-gray-200">
+                                <Clock className="w-10 h-10 mx-auto mb-3 text-gray-300" />
+                                <p className="text-gray-500 font-medium">No slots found for this date.</p>
+                                <p className="text-sm text-gray-400">Try selecting another day from the calendar.</p>
+                            </div>
+                        )}
 
-                            return (
-                                <button
-                                    key={slot.id}
-                                    disabled={disabled}
-                                    onClick={() => setSelectedSlotId(slot.id)}
-                                    className={`
-                                        py-3 rounded-lg border text-sm font-semibold flex flex-col items-center transition-all
-                                        ${disabled ? "bg-gray-100 text-gray-400 cursor-not-allowed" : ""}
-                                        ${selected ? "bg-emerald-600 text-white scale-105 shadow-md border-emerald-600" : ""}
-                                        ${!disabled && !selected ? "bg-white hover:border-emerald-500 hover:text-emerald-600" : ""}
-                                    `}
-                                >
-                                    <Clock className={`w-4 h-4 mb-1 ${selected ? "text-emerald-100" : "text-gray-400"}`} />
-                                    {formatTime(slot.start_time)}
-                                </button>
-                            );
-                        })}
+                        {/* Available Slots Section */}
+                        {date && slots.some(s => s.status === 'available') && (
+                            <div>
+                                <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wider mb-4 flex items-center gap-2">
+                                    <div className="w-2 h-2 rounded-full bg-emerald-500"></div>
+                                    Available Slots
+                                </h3>
+                                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+                                    {slots.filter(s => s.status === 'available').map((slot) => {
+                                        const selected = selectedSlotId === slot.time_slot_id;
+                                        return (
+                                            <button
+                                                key={slot.time_slot_id}
+                                                onClick={() => setSelectedSlotId(slot.time_slot_id)}
+                                                className={`
+                                                    py-3 rounded-lg border text-sm font-semibold flex flex-col items-center transition-all
+                                                    ${selected ? "bg-emerald-600 text-white scale-105 shadow-md border-emerald-600" : "bg-white hover:border-emerald-500 hover:text-emerald-600"}
+                                                `}
+                                            >
+                                                <Clock className={`w-4 h-4 mb-1 ${selected ? "text-emerald-100" : "text-gray-400"}`} />
+                                                {formatTime(slot.start_time)}
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Reserved Slots Section */}
+                        {date && slots.some(s => s.status === 'booked') && (
+                            <div className="pt-4 border-t border-gray-100">
+                                <h3 className="text-sm font-bold text-gray-500 uppercase tracking-wider mb-4 flex items-center gap-2">
+                                    <div className="w-2 h-2 rounded-full bg-gray-300"></div>
+                                    Reserved Slots
+                                </h3>
+                                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 opacity-60">
+                                    {slots.filter(s => s.status === 'booked').map((slot) => (
+                                        <div
+                                            key={slot.time_slot_id}
+                                            className="py-3 rounded-lg border bg-gray-50 text-gray-400 text-sm font-semibold flex flex-col items-center cursor-not-allowed"
+                                        >
+                                            <Clock className="w-4 h-4 mb-1 text-gray-300" />
+                                            <span className="line-through">{formatTime(slot.start_time)}</span>
+                                            <span className="text-[10px] uppercase mt-1">Reserved</span>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
                     </div>
 
                     {/* CTA */}
@@ -194,7 +226,7 @@ export default function LandingPage() {
                         </div>
                     )}
                 </div>
-            </section>
-        </div>
+            </section >
+        </div >
     );
 }

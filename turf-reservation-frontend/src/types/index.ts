@@ -9,13 +9,12 @@ export interface User {
 
 // Timeslot Types
 export interface Timeslot {
-    id: number;
+    time_slot_id: number;
+    turf_id: number;
     date: string;
     start_time: string;
     end_time: string;
     status: 'available' | 'booked' | 'blocked';
-    price: number;
-    created_at: string;
 }
 
 // Booking Types

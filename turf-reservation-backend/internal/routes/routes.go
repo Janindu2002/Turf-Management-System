@@ -10,7 +10,7 @@ import (
 )
 
 // SetupRouter configures all application routes
-func SetupRouter(authHandler *handlers.AuthHandler, cfg *config.Config) *gin.Engine {
+func SetupRouter(authHandler *handlers.AuthHandler, availabilityHandler *handlers.AvailabilityHandler, cfg *config.Config) *gin.Engine {
 	if cfg.AppEnv != "development" {
 		gin.SetMode(gin.ReleaseMode)
 	}
@@ -38,6 +38,9 @@ func SetupRouter(authHandler *handlers.AuthHandler, cfg *config.Config) *gin.Eng
 	// API routes
 	api := router.Group("/api")
 	{
+		// Public routes
+		api.GET("/availability", availabilityHandler.GetAvailability)
+
 		// Authentication routes (public)
 		auth := api.Group("/auth")
 		auth.Use(middleware.RateLimitMiddleware(5)) // Limit to 5 attempts per minute

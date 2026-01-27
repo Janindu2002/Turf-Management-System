@@ -24,12 +24,19 @@ func main() {
 	// Initialize repositories
 	userRepo := repositories.NewUserRepository(db)
 	logRepo := repositories.NewSecurityLogRepository(db)
+	timeSlotRepo := repositories.NewTimeSlotRepository(db)
+
+	// Ensure timeslots exist for the next 7 days
+	if err := timeSlotRepo.EnsureSlotsExist(); err != nil {
+		log.Printf("Warning: Failed to ensure timeslots exist: %v", err)
+	}
 
 	// Initialize handlers
 	authHandler := handlers.NewAuthHandler(userRepo, logRepo, cfg)
+	availabilityHandler := handlers.NewAvailabilityHandler(timeSlotRepo)
 
 	// Setup routes
-	router := routes.SetupRouter(authHandler, cfg)
+	router := routes.SetupRouter(authHandler, availabilityHandler, cfg)
 
 	// Start server
 	serverAddr := ":" + cfg.ServerPort
