@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Eye, EyeOff } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
@@ -15,10 +15,23 @@ type Errors = {
 
 export default function Login() {
     const navigate = useNavigate();
-    const { login, isLoading } = useAuth();
+    const { login, isLoading, isAuthenticated, user } = useAuth();
 
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
+
+    // Redirect if already authenticated
+    useEffect(() => {
+        if (isAuthenticated && user) {
+            const roleRoutes: Record<string, string> = {
+                admin: ROUTES.ADMIN_DASHBOARD,
+                coach: ROUTES.COACH_DASHBOARD,
+                player: ROUTES.PLAYER_DASHBOARD,
+            };
+            navigate(roleRoutes[user.role] || ROUTES.HOME, { replace: true });
+        }
+    }, [isAuthenticated, user, navigate]);
+
     const [showPassword, setShowPassword] = useState(false);
     const [errors, setErrors] = useState<Errors>({});
 
@@ -51,7 +64,7 @@ export default function Login() {
                 coach: ROUTES.COACH_DASHBOARD,
                 player: ROUTES.PLAYER_DASHBOARD,
             };
-            navigate(roleRoutes[loggedInUser.role] || ROUTES.HOME);
+            navigate(roleRoutes[loggedInUser.role] || ROUTES.HOME, { replace: true });
         } catch (err: any) {
             setErrors({
                 form:

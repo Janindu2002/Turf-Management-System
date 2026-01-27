@@ -8,18 +8,20 @@ import {
     Inbox,
     Settings
 } from "lucide-react";
+import { useAuth } from "@/context/AuthContext";
 import Card from "@/components/ui/Card";
 import Section from "@/components/ui/Section";
-import { STORAGE_KEYS, ROUTES } from "@/constants";
+import { ROUTES } from "@/constants";
 
 import logo from "../../assets/logo.jpeg";
 
 export default function CoachDashboard() {
     const navigate = useNavigate();
+    const { logout: handleLogout } = useAuth();
 
-    const logout = () => {
-        localStorage.removeItem(STORAGE_KEYS.TOKEN);
-        navigate("/");
+    const logout = async () => {
+        await handleLogout();
+        navigate("/", { replace: true });
     };
 
     return (

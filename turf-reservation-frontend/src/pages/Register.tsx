@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Eye, EyeOff } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
@@ -19,7 +19,19 @@ type Errors = {
 
 export default function Register() {
     const navigate = useNavigate();
-    const { register, isLoading } = useAuth();
+    const { register, isLoading, isAuthenticated, user } = useAuth();
+
+    // Redirect if already authenticated
+    useEffect(() => {
+        if (isAuthenticated && user) {
+            const roleRoutes: Record<string, string> = {
+                admin: ROUTES.ADMIN_DASHBOARD,
+                coach: ROUTES.COACH_DASHBOARD,
+                player: ROUTES.PLAYER_DASHBOARD,
+            };
+            navigate(roleRoutes[user.role] || ROUTES.HOME, { replace: true });
+        }
+    }, [isAuthenticated, user, navigate]);
 
     const [name, setName] = useState("");
     const [email, setEmail] = useState("");
@@ -79,7 +91,7 @@ export default function Register() {
                 coach: ROUTES.COACH_DASHBOARD,
             };
 
-            navigate(roleRoutes[role]);
+            navigate(roleRoutes[role], { replace: true });
         } catch (err: any) {
             setErrors({
                 form:

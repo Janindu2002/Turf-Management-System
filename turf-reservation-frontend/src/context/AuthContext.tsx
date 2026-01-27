@@ -26,10 +26,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }, []);
 
     const checkAuth = async () => {
+        const token = localStorage.getItem('token');
+        if (!token) {
+            console.log("[Auth] No token found, user is guest");
+            setIsLoading(false);
+            setUser(null);
+            return;
+        }
+
         try {
+            console.log("[Auth] Token found, verifying session...");
             const userData = await authAPI.getCurrentUser();
+            console.log("[Auth] Session verified:", userData.email);
             setUser(userData);
         } catch (error) {
+            console.log("[Auth] Session verification failed");
+            localStorage.removeItem('token');
             setUser(null);
         } finally {
             setIsLoading(false);
@@ -40,6 +52,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setIsLoading(true);
         try {
             const response: AuthResponse = await authAPI.login(credentials);
+            if (response.token) {
+                localStorage.setItem('token', response.token);
+            }
             setUser(response.user);
             return response.user;
         } finally {
@@ -62,6 +77,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setIsLoading(true);
         try {
             await authAPI.logout();
+            localStorage.removeItem('token');
             setUser(null);
         } finally {
             setIsLoading(false);
