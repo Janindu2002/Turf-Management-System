@@ -1,0 +1,200 @@
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { Calendar, Search, Clock, CheckCircle2 } from "lucide-react";
+import client from "../api/client.ts";
+import { useAuth } from "@/context/AuthContext";
+import logo from "../assets/logo.jpeg";
+
+/* =======================
+   Types
+======================= */
+type SlotStatus = "available" | "booked";
+
+interface TimeSlot {
+    id: number;
+    start_time: string;
+    end_time: string;
+    status: SlotStatus;
+}
+
+/* =======================
+   Component
+======================= */
+export default function LandingPage() {
+    const navigate = useNavigate();
+    useAuth();
+
+    const [date, setDate] = useState("");
+    const [slots, setSlots] = useState<TimeSlot[]>([]);
+    const [selectedSlotId, setSelectedSlotId] = useState<number | null>(null);
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+
+    /* =======================
+       Helpers
+    ======================= */
+    const formatTime = (time24: string) => {
+        const [h, m] = time24.split(":");
+        const hour = Number(h);
+        return `${hour % 12 || 12}:${m} ${hour >= 12 ? "PM" : "AM"}`;
+    };
+
+    /* =======================
+       API
+    ======================= */
+    const fetchSlots = async () => {
+        if (!date) {
+            setError("Please select a date first.");
+            return;
+        }
+
+        setLoading(true);
+        setError(null);
+        setSelectedSlotId(null);
+
+        try {
+            const res = await client.get(`/api/availability?date=${date}`);
+            setSlots(res.data);
+        } catch (err) {
+            console.error(err);
+            setError("Failed to load slots. Please try again.");
+            setSlots([]);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    /* =======================
+       Render
+    ======================= */
+    return (
+        <div className="min-h-screen bg-gray-50">
+
+            {/* Header */}
+            <header className="bg-white border-b shadow-sm sticky top-0 z-50">
+                <div className="w-full px-6 h-16 flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                        <img
+                            src={logo}
+                            alt="Astro Turf Logo"
+                            className="h-10 w-10 object-contain"
+                        />
+                        <span className="font-bold text-xl">Astro Turf</span>
+                    </div>
+                    <div className="flex gap-4 text-sm font-semibold">
+                        <button onClick={() => navigate("/login")} className="text-gray-600 hover:text-emerald-600">
+                            Login
+                        </button>
+                        <button
+                            onClick={() => navigate("/register")}
+                            className="bg-emerald-600 text-white px-4 py-2 rounded-full hover:bg-emerald-700"
+                        >
+                            Register
+                        </button>
+                    </div>
+                </div>
+            </header>
+
+            {/* Hero Section */}
+            {/* Note: This has z-10, so elements below need z-20 to sit on top */}
+            <section className="relative h-[420px]">
+                <img
+                    src="https://img.redbull.com/images/q_auto,f_auto/redbullcom/2018/07/06/71c265d8-cab8-4dfa-8fe7-9ceee33a73e2/hockey-collection"
+                    alt="Hero Background"
+                    className="absolute inset-0 w-full h-full object-cover brightness-50"
+                />
+                <div className="relative z-10 h-full flex flex-col items-center justify-center text-white text-center px-4">
+                    <h1 className="text-5xl font-extrabold mb-4">Play Like a Pro</h1>
+                    <p className="text-lg text-gray-200 max-w-xl">
+                        Reserve your spot on Sri Lanka’s premier astro turf
+                    </p>
+                </div>
+            </section>
+
+            {/* Availability Card Section */}
+            {/* FIX: Added 'relative z-20' to force this section ABOVE the Hero section */}
+            <section className="-mt-24 max-w-5xl mx-auto px-4 relative z-20">
+                <div className="bg-white rounded-2xl shadow-xl p-8">
+
+                    <h2 className="text-2xl font-bold text-center mb-6">
+                        Check Availability
+                    </h2>
+
+                    {/* Date + Search */}
+                    <div className="flex flex-col sm:flex-row gap-4 items-stretch sm:items-center justify-center mb-6">
+                        <div className="relative w-full sm:w-auto sm:flex-1 sm:max-w-xs">
+                            <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
+                            <input
+                                type="date"
+                                value={date}
+                                onChange={(e) => {
+                                    setDate(e.target.value);
+                                    if (error) setError(null);
+                                }}
+                                className="w-full pl-10 py-3 border rounded-xl bg-gray-50"
+                            />
+                        </div>
+
+                        <button
+                            onClick={fetchSlots}
+                            disabled={loading}
+                            className="w-full sm:w-auto bg-gray-900 text-white px-8 py-3 rounded-xl font-bold flex items-center justify-center gap-2 whitespace-nowrap hover:bg-gray-800 transition-colors"
+                        >
+                            {loading ? "Loading..." : <><Search className="w-4 h-4" /> Show Slots</>}
+                        </button>
+                    </div>
+
+                    {/* Error Message */}
+                    {error && (
+                        <div className="bg-red-50 border border-red-200 text-red-600 p-4 rounded-xl mb-6 text-sm text-center">
+                            {error}
+                        </div>
+                    )}
+
+                    {/* Slots Grid */}
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+                        {slots.length === 0 && !loading && !error && (
+                            <p className="col-span-full text-center text-gray-500 py-8">
+                                Select a date to view available time slots.
+                            </p>
+                        )}
+
+                        {slots.map((slot) => {
+                            const selected = selectedSlotId === slot.id;
+                            const disabled = slot.status === "booked";
+
+                            return (
+                                <button
+                                    key={slot.id}
+                                    disabled={disabled}
+                                    onClick={() => setSelectedSlotId(slot.id)}
+                                    className={`
+                                        py-3 rounded-lg border text-sm font-semibold flex flex-col items-center transition-all
+                                        ${disabled ? "bg-gray-100 text-gray-400 cursor-not-allowed" : ""}
+                                        ${selected ? "bg-emerald-600 text-white scale-105 shadow-md border-emerald-600" : ""}
+                                        ${!disabled && !selected ? "bg-white hover:border-emerald-500 hover:text-emerald-600" : ""}
+                                    `}
+                                >
+                                    <Clock className={`w-4 h-4 mb-1 ${selected ? "text-emerald-100" : "text-gray-400"}`} />
+                                    {formatTime(slot.start_time)}
+                                </button>
+                            );
+                        })}
+                    </div>
+
+                    {/* CTA */}
+                    {selectedSlotId && (
+                        <div className="mt-8 flex justify-center animate-in fade-in slide-in-from-bottom-2">
+                            <button
+                                onClick={() => navigate("/login")}
+                                className="bg-emerald-600 hover:bg-emerald-700 text-white px-10 py-3 rounded-full font-bold flex items-center gap-2 shadow-lg hover:shadow-xl transition-all hover:scale-105"
+                            >
+                                Book Slot <CheckCircle2 className="w-5 h-5" />
+                            </button>
+                        </div>
+                    )}
+                </div>
+            </section>
+        </div>
+    );
+}

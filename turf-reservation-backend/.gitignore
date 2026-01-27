@@ -1,0 +1,38 @@
+# Environment variables
+.env
+.env.local
+
+# Ignore all env variants
+.env*
+# Build outputs
+*.exe
+*.test
+*.out
+/bin/
+
+# Common native libraries
+*.dll
+*.so
+*.dylib
+
+# Go build/cache
+pkg/
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*.bak
+
+# Vendor (if you vendor dependencies)
+/vendor/
+
+# Test, coverage and profiling
+coverage.out
+*.prof
+
+# Logs
+*.log
+
+# macOS
+.DS_Store
