@@ -5,28 +5,36 @@ import (
 	"net/http"
 	"regexp"
 	"strings"
+	"time"
 
 	"turf-reservation-backend/internal/config"
 	"turf-reservation-backend/internal/middleware"
 	"turf-reservation-backend/internal/models"
 	"turf-reservation-backend/internal/repositories"
+	"turf-reservation-backend/internal/services"
 	"turf-reservation-backend/internal/utils"
+
+	"github.com/google/uuid"
 
 	"github.com/gin-gonic/gin"
 )
 
 type AuthHandler struct {
-	userRepo *repositories.UserRepository
-	logRepo  *repositories.SecurityLogRepository
-	config   *config.Config
+	userRepo     *repositories.UserRepository
+	resetRepo    *repositories.PasswordResetRepository
+	logRepo      *repositories.SecurityLogRepository
+	emailService *services.EmailService
+	config       *config.Config
 }
 
 // NewAuthHandler creates a new auth handler
-func NewAuthHandler(userRepo *repositories.UserRepository, logRepo *repositories.SecurityLogRepository, cfg *config.Config) *AuthHandler {
+func NewAuthHandler(userRepo *repositories.UserRepository, resetRepo *repositories.PasswordResetRepository, logRepo *repositories.SecurityLogRepository, emailService *services.EmailService, cfg *config.Config) *AuthHandler {
 	return &AuthHandler{
-		userRepo: userRepo,
-		logRepo:  logRepo,
-		config:   cfg,
+		userRepo:     userRepo,
+		resetRepo:    resetRepo,
+		logRepo:      logRepo,
+		emailService: emailService,
+		config:       cfg,
 	}
 }
 
@@ -329,5 +337,115 @@ func (h *AuthHandler) Me(c *gin.Context) {
 		"data": gin.H{
 			"user": user.ToResponse(),
 		},
+	})
+}
+
+// ForgotPassword handles the request to send a password reset link
+func (h *AuthHandler) ForgotPassword(c *gin.Context) {
+	var req struct {
+		Email string `json:"email" binding:"required,email"`
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Invalid email address"})
+		return
+	}
+
+	email := strings.ToLower(strings.TrimSpace(req.Email))
+	user, err := h.userRepo.GetUserByEmail(email)
+	if err != nil {
+		// We return success even if user not found to prevent email enumeration
+		c.JSON(http.StatusOK, gin.H{
+			"success": true,
+			"message": "If your email is registered, you will receive a reset link shortly.",
+		})
+		return
+	}
+
+	// Generate 6-digit OTP
+	otp := fmt.Sprintf("%06d", uuid.New().ID()%1000000)
+	expiry := time.Now().Add(15 * time.Minute) // OTPs usually have shorter expiry
+
+	// Save token in DB
+	err = h.resetRepo.CreateToken(user.UserID, otp, expiry)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to generate OTP"})
+		return
+	}
+
+	// Send email with OTP
+	err = h.emailService.SendResetOTP(user.Email, user.Name, otp)
+	if err != nil {
+		h.recordLog(c, &user.UserID, "forgot_password", "failure", "Failed to send reset email: "+err.Error())
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to send reset OTP"})
+		return
+	}
+
+	h.recordLog(c, &user.UserID, "forgot_password", "success", "Reset OTP sent")
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "If your email is registered, you will receive a reset link shortly.",
+	})
+}
+
+// ResetPassword handles the password update using a reset token
+func (h *AuthHandler) ResetPassword(c *gin.Context) {
+	var req struct {
+		Email    string `json:"email" binding:"required,email"`
+		OTP      string `json:"otp" binding:"required"`
+		Password string `json:"password" binding:"required"`
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Invalid request"})
+		return
+	}
+
+	email := strings.ToLower(strings.TrimSpace(req.Email))
+	user, err := h.userRepo.GetUserByEmail(email)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"success": false, "error": "User not found"})
+		return
+	}
+
+	// Verify token (OTP)
+	resetToken, err := h.resetRepo.GetByToken(req.OTP)
+	if err != nil || resetToken.UserID != user.UserID {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Invalid or expired OTP"})
+		return
+	}
+
+	// Check expiry
+	if time.Now().After(resetToken.ExpiresAt) {
+		_ = h.resetRepo.DeleteToken(req.OTP)
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "OTP has expired"})
+		return
+	}
+
+	// Hash new password
+	hashedPassword, err := utils.HashPassword(req.Password)
+	if err != nil {
+		h.recordLog(c, &resetToken.UserID, "password_reset", "failure", "Failed to hash new password: "+err.Error())
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to process request"})
+		return
+	}
+
+	// Update password
+	err = h.userRepo.UpdatePassword(resetToken.UserID, hashedPassword)
+	if err != nil {
+		h.recordLog(c, &resetToken.UserID, "password_reset", "failure", "Failed to update user password in DB: "+err.Error())
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to update password"})
+		return
+	}
+
+	// Delete token
+	_ = h.resetRepo.DeleteToken(req.OTP)
+
+	h.recordLog(c, &resetToken.UserID, "password_reset", "success", "Password updated successfully via reset link")
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "Password updated successfully. You can now login with your new password.",
 	})
 }

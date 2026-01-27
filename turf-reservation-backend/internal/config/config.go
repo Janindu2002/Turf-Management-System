@@ -28,7 +28,15 @@ type Config struct {
 	AllowedOrigin string
 
 	// Application Environment
-	AppEnv string
+	AppEnv      string
+	FrontendURL string
+
+	// SMTP Configuration
+	SMTPHost string
+	SMTPPort string
+	SMTPUser string
+	SMTPPass string
+	SMTPFrom string
 }
 
 // LoadConfig loads configuration from environment variables
@@ -57,6 +65,12 @@ func LoadConfig() *Config {
 		JWTExpiryHours: jwtExpiry,
 		AllowedOrigin:  getEnv("ALLOWED_ORIGIN", "http://localhost:5173"),
 		AppEnv:         getEnv("APP_ENV", "production"),
+		FrontendURL:    getEnv("FRONTEND_URL", "http://localhost:5173"),
+		SMTPHost:       getEnv("SMTP_HOST", ""),
+		SMTPPort:       getEnv("SMTP_PORT", ""),
+		SMTPUser:       getEnv("SMTP_USER", ""),
+		SMTPPass:       getEnv("SMTP_PASS", ""),
+		SMTPFrom:       getEnv("SMTP_FROM", ""),
 	}
 }
 

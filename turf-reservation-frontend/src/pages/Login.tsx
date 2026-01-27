@@ -143,6 +143,16 @@ export default function Login() {
                     >
                         {isLoading ? "Logging in..." : "Login"}
                     </button>
+
+                    <div className="text-right">
+                        <button
+                            type="button"
+                            onClick={() => navigate(ROUTES.FORGOT_PASSWORD)}
+                            className="text-sm text-emerald-600 font-semibold hover:underline"
+                        >
+                            Forgot Password?
+                        </button>
+                    </div>
                 </form>
 
                 <p className="text-center text-gray-600 mt-6">

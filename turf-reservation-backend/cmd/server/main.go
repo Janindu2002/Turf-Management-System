@@ -8,6 +8,7 @@ import (
 	"turf-reservation-backend/internal/handlers"
 	"turf-reservation-backend/internal/repositories"
 	"turf-reservation-backend/internal/routes"
+	"turf-reservation-backend/internal/services"
 )
 
 func main() {
@@ -23,8 +24,12 @@ func main() {
 
 	// Initialize repositories
 	userRepo := repositories.NewUserRepository(db)
+	resetRepo := repositories.NewPasswordResetRepository(db)
 	logRepo := repositories.NewSecurityLogRepository(db)
 	timeSlotRepo := repositories.NewTimeSlotRepository(db)
+
+	// Initialize services
+	emailService := services.NewEmailService(cfg)
 
 	// Ensure timeslots exist for the next 7 days
 	if err := timeSlotRepo.EnsureSlotsExist(); err != nil {
@@ -32,7 +37,7 @@ func main() {
 	}
 
 	// Initialize handlers
-	authHandler := handlers.NewAuthHandler(userRepo, logRepo, cfg)
+	authHandler := handlers.NewAuthHandler(userRepo, resetRepo, logRepo, emailService, cfg)
 	availabilityHandler := handlers.NewAvailabilityHandler(timeSlotRepo)
 
 	// Setup routes

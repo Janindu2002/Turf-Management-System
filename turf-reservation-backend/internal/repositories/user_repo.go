@@ -9,7 +9,7 @@ import (
 )
 
 var (
-	ErrUserNotFound      = errors.New("user not found")
+	ErrUserNotFound       = errors.New("user not found")
 	ErrEmailAlreadyExists = errors.New("email already exists")
 )
 
@@ -141,4 +141,25 @@ func (r *UserRepository) EmailExists(email string) (bool, error) {
 	}
 
 	return exists, nil
+}
+
+// UpdatePassword updates a user's password
+func (r *UserRepository) UpdatePassword(userID int, hashedPassword string) error {
+	query := `UPDATE users SET password = $1 WHERE user_id = $2`
+
+	result, err := r.db.Exec(query, hashedPassword, userID)
+	if err != nil {
+		return fmt.Errorf("failed to update password: %w", err)
+	}
+
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("failed to get rows affected: %w", err)
+	}
+
+	if rows == 0 {
+		return ErrUserNotFound
+	}
+
+	return nil
 }

@@ -49,3 +49,22 @@ export async function getCurrentUser(): Promise<User> {
 
     return response.data.data.user;
 }
+/**
+ * Request a password reset link
+ */
+export async function forgotPassword(email: string): Promise<void> {
+    const response = await client.post<ApiResponse<void>>('/api/auth/forgot-password', { email });
+    if (!response.data.success) {
+        throw new Error(response.data.error || 'Failed to request reset link');
+    }
+}
+
+/**
+ * Reset password using a token
+ */
+export async function resetPassword(email: string, otp: string, password: string): Promise<void> {
+    const response = await client.post<ApiResponse<void>>('/api/auth/reset-password', { email, otp, password });
+    if (!response.data.success) {
+        throw new Error(response.data.error || 'Failed to reset password');
+    }
+}

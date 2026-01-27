@@ -28,6 +28,8 @@ export const ROUTES = {
     JOIN_SOLO_POOL: '/player/solo-pool',
     FIND_TEAM: '/player/find-team',
     HOST_EVENT: '/player/host-event',
+    FORGOT_PASSWORD: '/forgot-password',
+    RESET_PASSWORD: '/reset-password',
 } as const;
 
 // API Endpoints
@@ -36,6 +38,8 @@ export const API_ENDPOINTS = {
     LOGIN: '/api/auth/login',
     REGISTER: '/api/auth/register',
     LOGOUT: '/api/auth/logout',
+    FORGOT_PASSWORD: '/api/auth/forgot-password',
+    RESET_PASSWORD: '/api/auth/reset-password',
 
     // Timeslots
     TIMESLOTS: '/api/timeslots',

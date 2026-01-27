@@ -2,6 +2,8 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import LandingPage from "@/pages/LandingPage";
 import Login from "@/pages/Login";
 import Register from "@/pages/Register";
+import ForgotPassword from "@/pages/ForgotPassword";
+import ResetPassword from "@/pages/ResetPassword";
 import AdminDashboard from "@/pages/admin/AdminDashboard";
 import ManagePlayers from "@/pages/admin/player-management/ManagePlayers";
 import SoloPlayerHandling from "@/pages/admin/player-management/SoloPlayerHandling";
@@ -30,6 +32,8 @@ export default function App() {
           <Route path={ROUTES.HOME} element={<LandingPage />} />
           <Route path={ROUTES.LOGIN} element={<Login />} />
           <Route path={ROUTES.REGISTER} element={<Register />} />
+          <Route path={ROUTES.FORGOT_PASSWORD} element={<ForgotPassword />} />
+          <Route path={ROUTES.RESET_PASSWORD} element={<ResetPassword />} />
 
           {/* Protected Routes with Role-Based Access Control */}
           <Route
