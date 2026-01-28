@@ -11,11 +11,21 @@ import (
 
 // SetupRouter configures all application routes
 func SetupRouter(authHandler *handlers.AuthHandler, availabilityHandler *handlers.AvailabilityHandler, cfg *config.Config) *gin.Engine {
-	if cfg.AppEnv != "development" {
+	// Set Gin mode based on environment
+	if cfg.AppEnv == "production" {
+		gin.SetMode(gin.ReleaseMode)
+	} else {
+		// In development, we can still use ReleaseMode if we want minimal logs,
+		// but let's stick to the user's request for "minimal" output regardless.
 		gin.SetMode(gin.ReleaseMode)
 	}
-	router := gin.New() // Use gin.New() to remove default Logger and Recovery for even cleaner output
+
+	router := gin.New()
+	router.Use(gin.Logger()) // Restore logging for visibility
 	router.Use(gin.Recovery())
+
+	// Disable trusted proxies warning
+	router.SetTrustedProxies(nil)
 
 	// CORS configuration
 	corsConfig := cors.Config{

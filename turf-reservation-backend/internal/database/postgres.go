@@ -5,8 +5,9 @@ import (
 	"fmt"
 	"log"
 
-	_ "github.com/lib/pq"
 	"turf-reservation-backend/internal/config"
+
+	_ "github.com/lib/pq"
 )
 
 // InitDB initializes and returns a database connection
@@ -34,9 +35,9 @@ func InitDB(cfg *config.Config) (*sql.DB, error) {
 	}
 
 	// Set connection pool settings
-	db.SetMaxOpenConns(25)                // Maximum number of open connections
-	db.SetMaxIdleConns(5)                 // Maximum number of idle connections
-	db.SetConnMaxLifetime(0)              // No limit on connection lifetime
+	db.SetMaxOpenConns(25)   // Maximum number of open connections
+	db.SetMaxIdleConns(5)    // Maximum number of idle connections
+	db.SetConnMaxLifetime(0) // No limit on connection lifetime
 
 	log.Println("✓ Database connection established")
 	return db, nil

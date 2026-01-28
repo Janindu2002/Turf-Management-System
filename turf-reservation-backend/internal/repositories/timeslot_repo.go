@@ -70,7 +70,7 @@ func (r *TimeSlotRepository) EnsureSlotsExist() error {
 		}
 
 		if count == 0 {
-			fmt.Printf("Generating slots for %s...\n", dateStr)
+			// fmt.Printf("Generating slots for %s...\n", dateStr)
 			// Generate slots from 8 AM to 9 PM (21:00)
 			for hour := 8; hour < 21; hour++ {
 				startTime := time.Date(currentDate.Year(), currentDate.Month(), currentDate.Day(), hour, 0, 0, 0, time.Local)
