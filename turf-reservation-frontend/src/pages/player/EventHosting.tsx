@@ -10,9 +10,9 @@ import {
     Loader2,
     AlignLeft
 } from "lucide-react";
-import client from "@/api/client"; // Assumed existing client
 import { useAuth } from "@/context/AuthContext";
 import { ROUTES } from "@/constants";
+import { eventAPI } from "@/api/event";
 import logo from "@/assets/logo.jpeg";
 
 /* =======================
@@ -21,8 +21,9 @@ import logo from "@/assets/logo.jpeg";
 interface EventForm {
     eventName: string;
     eventType: string;
-    date: string;
-    time: string;
+    startDate: string;
+    startTime: string;
+    endDate: string;
     expectedParticipants: string;
     description: string;
     requirements: string;
@@ -37,8 +38,9 @@ export default function EventHosting() {
     const [formData, setFormData] = useState<EventForm>({
         eventName: "",
         eventType: "Friendly Match",
-        date: "",
-        time: "",
+        startDate: "",
+        startTime: "",
+        endDate: "",
         expectedParticipants: "",
         description: "",
         requirements: ""
@@ -63,19 +65,22 @@ export default function EventHosting() {
 
         try {
             // Validate basic fields
-            if (!formData.date || !formData.time || !formData.eventName) {
+            if (!formData.startDate || !formData.startTime || !formData.endDate || !formData.eventName) {
                 throw new Error("Please fill in all required fields.");
             }
 
             // API Call
-            await client.post("/api/events/host", formData);
+            await eventAPI.hostEvent({
+                ...formData,
+                expectedParticipants: formData.expectedParticipants ? parseInt(formData.expectedParticipants) : undefined
+            });
 
             setSuccess(true);
             setTimeout(() => navigate(ROUTES.PLAYER_DASHBOARD), 2500);
 
         } catch (err: any) {
             console.error(err);
-            setError(err.message || "Failed to create event. Please try again.");
+            setError(err.response?.data?.error || err.message || "Failed to create event. Please try again.");
             setLoading(false);
         }
     };
@@ -180,26 +185,47 @@ export default function EventHosting() {
                                 <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
                                     <CalendarDays className="w-5 h-5 text-emerald-600" /> Schedule
                                 </h3>
-                                <div className="grid md:grid-cols-2 gap-4">
+                                <div className="space-y-4">
+                                    {/* Start */}
                                     <div>
-                                        <label className="text-sm font-semibold text-gray-700 block mb-1">Date</label>
-                                        <input
-                                            type="date"
-                                            name="date"
-                                            value={formData.date}
-                                            onChange={handleInputChange}
-                                            className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none bg-white"
-                                        />
+                                        <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">Start</p>
+                                        <div className="grid md:grid-cols-2 gap-4">
+                                            <div>
+                                                <label className="text-sm font-semibold text-gray-700 block mb-1">Start Date</label>
+                                                <input
+                                                    type="date"
+                                                    name="startDate"
+                                                    value={formData.startDate}
+                                                    onChange={handleInputChange}
+                                                    className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none bg-white"
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="text-sm font-semibold text-gray-700 block mb-1">Start Time</label>
+                                                <input
+                                                    type="time"
+                                                    name="startTime"
+                                                    value={formData.startTime}
+                                                    onChange={handleInputChange}
+                                                    className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none bg-white"
+                                                />
+                                            </div>
+                                        </div>
                                     </div>
+                                    {/* End */}
                                     <div>
-                                        <label className="text-sm font-semibold text-gray-700 block mb-1">Start Time</label>
-                                        <input
-                                            type="time"
-                                            name="time"
-                                            value={formData.time}
-                                            onChange={handleInputChange}
-                                            className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none bg-white"
-                                        />
+                                        <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">End</p>
+                                        <div>
+                                            <label className="text-sm font-semibold text-gray-700 block mb-1">End Date</label>
+                                            <input
+                                                type="date"
+                                                name="endDate"
+                                                value={formData.endDate}
+                                                min={formData.startDate}
+                                                onChange={handleInputChange}
+                                                className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none bg-white"
+                                            />
+                                        </div>
                                     </div>
                                 </div>
                             </div>

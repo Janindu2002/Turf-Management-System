@@ -1,4 +1,7 @@
 package models
 
-// Team model will be implemented here
-// Placeholder to prevent compilation errors
+// Team represents a team in the system
+type Team struct {
+	TeamID   int    `json:"team_id"`
+	TeamName string `json:"team_name"`
+}

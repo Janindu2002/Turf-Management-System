@@ -91,3 +91,39 @@ func (r *TimeSlotRepository) EnsureSlotsExist() error {
 
 	return nil
 }
+
+// UpdateStatus updates the status of a specific timeslot
+func (r *TimeSlotRepository) UpdateStatus(id int, status string) error {
+	query := `UPDATE time_slots SET status = $1 WHERE time_slot_id = $2`
+	_, err := r.db.Exec(query, status, id)
+	if err != nil {
+		return fmt.Errorf("failed to update timeslot status: %w", err)
+	}
+	return nil
+}
+
+// GetByID retrieves a timeslot by its ID
+func (r *TimeSlotRepository) GetByID(id int) (*models.TimeSlot, error) {
+	query := `
+		SELECT time_slot_id, turf_id, start_time, end_time, date, status
+		FROM time_slots
+		WHERE time_slot_id = $1
+	`
+	slot := &models.TimeSlot{}
+	err := r.db.QueryRow(query, id).Scan(
+		&slot.TimeSlotID,
+		&slot.TurfID,
+		&slot.StartTime,
+		&slot.EndTime,
+		&slot.Date,
+		&slot.Status,
+	)
+
+	if err == sql.ErrNoRows {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("failed to get timeslot by ID: %w", err)
+	}
+	return slot, nil
+}

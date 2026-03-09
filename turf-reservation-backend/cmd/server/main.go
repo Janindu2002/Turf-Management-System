@@ -27,9 +27,13 @@ func main() {
 	resetRepo := repositories.NewPasswordResetRepository(db)
 	logRepo := repositories.NewSecurityLogRepository(db)
 	timeSlotRepo := repositories.NewTimeSlotRepository(db)
+	bookingRepo := repositories.NewBookingRepository(db)
+	eventRepo := repositories.NewEventRepository(db)
 
 	// Initialize services
 	emailService := services.NewEmailService(cfg)
+	bookingService := services.NewBookingService(bookingRepo, timeSlotRepo)
+	eventService := services.NewEventService(eventRepo)
 
 	// Ensure timeslots exist for the next 7 days
 	if err := timeSlotRepo.EnsureSlotsExist(); err != nil {
@@ -39,9 +43,11 @@ func main() {
 	// Initialize handlers
 	authHandler := handlers.NewAuthHandler(userRepo, resetRepo, logRepo, emailService, cfg)
 	availabilityHandler := handlers.NewAvailabilityHandler(timeSlotRepo)
+	bookingHandler := handlers.NewBookingHandler(bookingService)
+	eventHandler := handlers.NewEventHandler(eventService)
 
 	// Setup routes
-	router := routes.SetupRouter(authHandler, availabilityHandler, cfg)
+	router := routes.SetupRouter(authHandler, availabilityHandler, bookingHandler, eventHandler, cfg)
 
 	// Start server
 	serverAddr := ":" + cfg.ServerPort

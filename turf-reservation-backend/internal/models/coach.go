@@ -1,4 +1,9 @@
 package models
 
-// Coach model will be implemented here
-// Placeholder to prevent compilation errors
+// Coach represents a coach in the system
+type Coach struct {
+	UserID         int     `json:"user_id"`
+	Specialization string  `json:"specialization,omitempty"`
+	Availability   string  `json:"availability,omitempty"`
+	HourlyRate     float64 `json:"hourly_rate"`
+}

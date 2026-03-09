@@ -10,7 +10,7 @@ import (
 )
 
 // SetupRouter configures all application routes
-func SetupRouter(authHandler *handlers.AuthHandler, availabilityHandler *handlers.AvailabilityHandler, cfg *config.Config) *gin.Engine {
+func SetupRouter(authHandler *handlers.AuthHandler, availabilityHandler *handlers.AvailabilityHandler, bookingHandler *handlers.BookingHandler, eventHandler *handlers.EventHandler, cfg *config.Config) *gin.Engine {
 	// Set Gin mode based on environment
 	if cfg.AppEnv == "production" {
 		gin.SetMode(gin.ReleaseMode)
@@ -73,8 +73,15 @@ func SetupRouter(authHandler *handlers.AuthHandler, availabilityHandler *handler
 		protected := api.Group("")
 		protected.Use(middleware.AuthMiddleware(cfg.JWTSecret))
 		{
-			// Placeholder for future authenticated routes
-			// Example: protected.GET("/bookings/my", bookingHandler.GetMyBookings)
+			// Booking routes
+			protected.POST("/bookings", bookingHandler.CreateBooking)
+			protected.GET("/bookings/my", bookingHandler.GetMyBookings)
+			protected.PUT("/bookings/:id/reschedule", bookingHandler.RescheduleBooking)
+			protected.POST("/bookings/:id/cancel", bookingHandler.CancelBooking)
+			protected.DELETE("/bookings/:id", bookingHandler.RemoveCancelledBooking)
+			// Event routes
+			protected.POST("/events/host", eventHandler.HostEvent)
+			protected.GET("/events/my", eventHandler.GetMyEvents)
 		}
 
 		// Admin routes
@@ -82,8 +89,14 @@ func SetupRouter(authHandler *handlers.AuthHandler, availabilityHandler *handler
 		admin.Use(middleware.AuthMiddleware(cfg.JWTSecret))
 		admin.Use(middleware.RequireAdmin())
 		{
-			// Placeholder for admin routes
-			// Example: admin.GET("/stats", adminHandler.GetStats)
+			// Booking Management
+			admin.GET("/bookings/pending", bookingHandler.GetPendingBookings)
+			admin.POST("/bookings/:id/approve", bookingHandler.ApproveBooking)
+			admin.POST("/bookings/:id/reject", bookingHandler.RejectBooking)
+			// Event Management
+			admin.GET("/events/pending", eventHandler.GetPendingEvents)
+			admin.POST("/events/:id/approve", eventHandler.ApproveEvent)
+			admin.POST("/events/:id/reject", eventHandler.RejectEvent)
 		}
 
 		// Coach routes

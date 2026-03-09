@@ -1,7 +1,8 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { Calendar, Clock, ArrowLeft, CheckCircle2, Loader2, AlertCircle } from "lucide-react";
 import client from "@/api/client";
+import { bookingAPI } from "@/api/booking";
 import { useAuth } from "@/context/AuthContext";
 import { ROUTES } from "@/constants";
 import logo from "@/assets/logo.jpeg";
@@ -10,7 +11,7 @@ import logo from "@/assets/logo.jpeg";
    Types
 ======================= */
 interface TimeSlot {
-    id: number;
+    time_slot_id: number;
     start_time: string;
     end_time: string;
     status: "available" | "booked";
@@ -18,7 +19,12 @@ interface TimeSlot {
 
 export default function MakeReservation() {
     const navigate = useNavigate();
+    const [searchParams] = useSearchParams();
     useAuth(); // Protect route
+
+    // Reschedule mode
+    const rescheduleId = searchParams.get("reschedule");
+    const isRescheduling = !!rescheduleId;
 
     // State
     const [date, setDate] = useState("");
@@ -49,7 +55,7 @@ export default function MakeReservation() {
         try {
             // Fetching availability for the specific date
             const res = await client.get(`/api/availability?date=${selectedDate}`);
-            setSlots(res.data);
+            setSlots(res.data || []);
         } catch (err) {
             console.error(err);
             // Fallback error or empty state
@@ -74,17 +80,23 @@ export default function MakeReservation() {
 
         setSubmitting(true);
         try {
-            // POST request to create the booking
-            await client.post("/api/bookings", {
-                slot_id: selectedSlotId,
-                date: date
-            });
+            if (isRescheduling) {
+                // PUT request to reschedule
+                await bookingAPI.rescheduleBooking(Number(rescheduleId), selectedSlotId);
+            } else {
+                // POST request to create the booking
+                await bookingAPI.createBooking({
+                    time_slot_id: selectedSlotId,
+                    total_price: 2500, // Fixed price for now
+                });
+            }
 
             // On success, redirect to dashboard
             navigate(ROUTES.PLAYER_DASHBOARD);
-        } catch (err) {
-            console.error(err);
-            setError("Failed to complete reservation. Please try again.");
+        } catch (err: any) {
+            console.error("Booking error details:", err);
+            const serverMsg = err.response?.data?.error || err.message;
+            setError(`Failed to ${isRescheduling ? 'reschedule' : 'complete'} reservation: ${serverMsg}`);
             setSubmitting(false);
         }
     };
@@ -109,8 +121,14 @@ export default function MakeReservation() {
 
             <main className="max-w-4xl mx-auto px-6 py-10">
                 <div className="mb-8">
-                    <h1 className="text-3xl font-bold text-gray-900">Make a Reservation</h1>
-                    <p className="text-gray-600">Select a date and time to book your game.</p>
+                    <h1 className="text-3xl font-bold text-gray-900">
+                        {isRescheduling ? "Reschedule Reservation" : "Make a Reservation"}
+                    </h1>
+                    <p className="text-gray-600">
+                        {isRescheduling
+                            ? "Select a new date and time for your booking."
+                            : "Select a date and time to book your game."}
+                    </p>
                 </div>
 
                 <div className="grid md:grid-cols-3 gap-8">
@@ -147,7 +165,7 @@ export default function MakeReservation() {
                                     <span className="text-emerald-700">Time:</span>
                                     <span className="font-medium">
                                         {selectedSlotId
-                                            ? formatTime(slots.find(s => s.id === selectedSlotId)?.start_time || "")
+                                            ? formatTime(slots.find(s => s.time_slot_id === selectedSlotId)?.start_time || "")
                                             : "--"}
                                     </span>
                                 </div>
@@ -170,7 +188,7 @@ export default function MakeReservation() {
                                 {submitting ? (
                                     <><Loader2 className="w-4 h-4 animate-spin" /> Processing...</>
                                 ) : (
-                                    <><CheckCircle2 className="w-5 h-5" /> Confirm Booking</>
+                                    <><CheckCircle2 className="w-5 h-5" /> {isRescheduling ? "Confirm Reschedule" : "Confirm Booking"}</>
                                 )}
                             </button>
                         </div>
@@ -198,19 +216,19 @@ export default function MakeReservation() {
                             <div className="bg-white p-6 rounded-xl shadow-sm border">
                                 <h3 className="font-bold text-gray-800 mb-4">Available Slots</h3>
 
-                                {slots.length === 0 ? (
+                                {slots && slots.length === 0 ? (
                                     <p className="text-gray-500 text-center py-8">No slots available for this date.</p>
                                 ) : (
                                     <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
-                                        {slots.map((slot) => {
-                                            const isSelected = selectedSlotId === slot.id;
+                                        {slots?.map((slot) => {
+                                            const isSelected = selectedSlotId === slot.time_slot_id;
                                             const isBooked = slot.status === "booked";
 
                                             return (
                                                 <button
-                                                    key={slot.id}
+                                                    key={slot.time_slot_id}
                                                     disabled={isBooked}
-                                                    onClick={() => setSelectedSlotId(slot.id)}
+                                                    onClick={() => setSelectedSlotId(slot.time_slot_id)}
                                                     className={`
                                                         py-3 px-2 rounded-lg text-sm font-semibold border transition-all flex flex-col items-center justify-center gap-1
                                                         ${isBooked
