@@ -24,6 +24,7 @@ interface EventForm {
     startDate: string;
     startTime: string;
     endDate: string;
+    endTime: string;
     expectedParticipants: string;
     description: string;
     requirements: string;
@@ -41,6 +42,7 @@ export default function EventHosting() {
         startDate: "",
         startTime: "",
         endDate: "",
+        endTime: "",
         expectedParticipants: "",
         description: "",
         requirements: ""
@@ -65,7 +67,7 @@ export default function EventHosting() {
 
         try {
             // Validate basic fields
-            if (!formData.startDate || !formData.startTime || !formData.endDate || !formData.eventName) {
+            if (!formData.startDate || !formData.startTime || !formData.endDate || !formData.endTime || !formData.eventName) {
                 throw new Error("Please fill in all required fields.");
             }
 
@@ -215,16 +217,28 @@ export default function EventHosting() {
                                     {/* End */}
                                     <div>
                                         <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">End</p>
-                                        <div>
-                                            <label className="text-sm font-semibold text-gray-700 block mb-1">End Date</label>
-                                            <input
-                                                type="date"
-                                                name="endDate"
-                                                value={formData.endDate}
-                                                min={formData.startDate}
-                                                onChange={handleInputChange}
-                                                className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none bg-white"
-                                            />
+                                        <div className="grid md:grid-cols-2 gap-4">
+                                            <div>
+                                                <label className="text-sm font-semibold text-gray-700 block mb-1">End Date</label>
+                                                <input
+                                                    type="date"
+                                                    name="endDate"
+                                                    value={formData.endDate}
+                                                    min={formData.startDate}
+                                                    onChange={handleInputChange}
+                                                    className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none bg-white"
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="text-sm font-semibold text-gray-700 block mb-1">End Time</label>
+                                                <input
+                                                    type="time"
+                                                    name="endTime"
+                                                    value={formData.endTime}
+                                                    onChange={handleInputChange}
+                                                    className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none bg-white"
+                                                />
+                                            </div>
                                         </div>
                                     </div>
                                 </div>

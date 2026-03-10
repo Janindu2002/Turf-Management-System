@@ -27,6 +27,7 @@ func (h *EventHandler) HostEvent(c *gin.Context) {
 		StartDate            string `json:"startDate" binding:"required"`
 		StartTime            string `json:"startTime" binding:"required"`
 		EndDate              string `json:"endDate" binding:"required"`
+		EndTime              string `json:"endTime" binding:"required"`
 		ExpectedParticipants *int   `json:"expectedParticipants,omitempty"`
 		Description          string `json:"description"`
 		Requirements         string `json:"requirements"`
@@ -51,6 +52,7 @@ func (h *EventHandler) HostEvent(c *gin.Context) {
 		StartDate:            req.StartDate,
 		StartTime:            req.StartTime,
 		EndDate:              req.EndDate,
+		EndTime:              req.EndTime,
 		ExpectedParticipants: req.ExpectedParticipants,
 		Description:          req.Description,
 		Requirements:         req.Requirements,
@@ -72,6 +74,16 @@ func (h *EventHandler) GetPendingEvents(c *gin.Context) {
 	events, err := h.eventService.GetAllPendingEvents()
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch pending events"})
+		return
+	}
+	c.JSON(http.StatusOK, events)
+}
+
+// GetAllEvents handles GET /api/admin/events (History)
+func (h *EventHandler) GetAllEvents(c *gin.Context) {
+	events, err := h.eventService.GetAllEvents()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch event history"})
 		return
 	}
 	c.JSON(http.StatusOK, events)
@@ -119,4 +131,26 @@ func (h *EventHandler) GetMyEvents(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, events)
+}
+
+// DeleteEvent handles DELETE /api/events/:id
+func (h *EventHandler) DeleteEvent(c *gin.Context) {
+	userID, exists := middleware.GetUserID(c)
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		return
+	}
+
+	id, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid event ID"})
+		return
+	}
+
+	if err := h.eventService.DeleteEvent(id, userID); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Event removed successfully"})
 }

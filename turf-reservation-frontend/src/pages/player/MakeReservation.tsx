@@ -15,6 +15,7 @@ interface TimeSlot {
     start_time: string;
     end_time: string;
     status: "available" | "booked";
+    blocked_reason?: string;
 }
 
 export default function MakeReservation() {
@@ -230,7 +231,7 @@ export default function MakeReservation() {
                                                     disabled={isBooked}
                                                     onClick={() => setSelectedSlotId(slot.time_slot_id)}
                                                     className={`
-                                                        py-3 px-2 rounded-lg text-sm font-semibold border transition-all flex flex-col items-center justify-center gap-1
+                                                        py-3 px-2 rounded-lg text-sm font-semibold border transition-all flex flex-col items-center justify-center gap-1 min-h-[72px] text-center
                                                         ${isBooked
                                                             ? "bg-gray-100 text-gray-400 border-gray-100 cursor-not-allowed"
                                                             : isSelected
@@ -240,7 +241,12 @@ export default function MakeReservation() {
                                                     `}
                                                 >
                                                     <Clock className={`w-4 h-4 ${isSelected ? "text-emerald-100" : "text-gray-400"}`} />
-                                                    {formatTime(slot.start_time)}
+                                                    <span className={isBooked ? "line-through" : ""}>{formatTime(slot.start_time)}</span>
+                                                    {isBooked && (
+                                                        <span className="text-[9px] uppercase font-bold text-emerald-600 leading-tight px-1">
+                                                            {slot.blocked_reason || "Reserved"}
+                                                        </span>
+                                                    )}
                                                 </button>
                                             )
                                         })}

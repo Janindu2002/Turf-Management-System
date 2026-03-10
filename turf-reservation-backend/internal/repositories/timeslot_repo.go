@@ -70,17 +70,34 @@ func (r *TimeSlotRepository) EnsureSlotsExist() error {
 		}
 
 		if count == 0 {
-			// fmt.Printf("Generating slots for %s...\n", dateStr)
 			// Generate slots from 8 AM to 9 PM (21:00)
 			for hour := 8; hour < 21; hour++ {
 				startTime := time.Date(currentDate.Year(), currentDate.Month(), currentDate.Day(), hour, 0, 0, 0, time.Local)
 				endTime := startTime.Add(time.Hour)
 
-				_, err := r.db.Exec(`
-					INSERT INTO time_slots (turf_id, start_time, end_time, date, status)
-					VALUES ($1, $2, $3, $4, $5)
+				// Determine initial status based on approved events
+				status := "available"
+				var eventName string
+				// Check if any approved event covers this slot
+				// We check if (startDate <= date AND endDate >= date) AND (startTime::time <= slotTime AND endTime::time > slotTime)
+				eventCheckQuery := `
+					SELECT event_name FROM events 
+					WHERE status = 'approved' 
+					AND start_date <= $1 AND end_date >= $1
+					AND start_time::time <= $2 AND end_time::time > $2
+					LIMIT 1
+				`
+				slotTimeStr := startTime.Format("15:04:05")
+				err := r.db.QueryRow(eventCheckQuery, dateStr, slotTimeStr).Scan(&eventName)
+				if err == nil && eventName != "" {
+					status = "booked"
+				}
+
+				_, err = r.db.Exec(`
+					INSERT INTO time_slots (turf_id, start_time, end_time, date, status, blocked_reason)
+					VALUES ($1, $2, $3, $4, $5, $6)
 					ON CONFLICT (turf_id, date, start_time) DO NOTHING
-				`, defaultTurfID, startTime, endTime, dateStr, "available")
+				`, defaultTurfID, startTime, endTime, dateStr, status, eventName)
 
 				if err != nil {
 					return fmt.Errorf("failed to create slot for %s %d:00: %w", dateStr, hour, err)
@@ -126,4 +143,16 @@ func (r *TimeSlotRepository) GetByID(id int) (*models.TimeSlot, error) {
 		return nil, fmt.Errorf("failed to get timeslot by ID: %w", err)
 	}
 	return slot, nil
+}
+
+// BlockSlotsForEvent marks slots within a date/time range as 'booked' and sets the reason
+func (r *TimeSlotRepository) BlockSlotsForEvent(startDate, startTime, endDate, endTime, eventName string) error {
+	query := `
+		UPDATE time_slots 
+		SET status = 'booked', blocked_reason = $5
+		WHERE date >= $1 AND date <= $2
+		AND start_time::time >= $3 AND start_time::time < $4
+	`
+	_, err := r.db.Exec(query, startDate, endDate, startTime, endTime, eventName)
+	return err
 }

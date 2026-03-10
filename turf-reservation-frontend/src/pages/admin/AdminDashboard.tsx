@@ -1,28 +1,65 @@
 import { useNavigate } from "react-router-dom";
+import { useEffect, useState } from "react";
 import {
     LogOut,
     Calendar,
-    BarChart3,
     Users,
     UserPlus,
     FileText,
     UserCog,
     CheckSquare,
-    CalendarX
+    CalendarX,
+    Clock,
+    Loader2
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
-import Card from "@/components/ui/Card";
 import Section from "@/components/ui/Section";
 import { ROUTES } from "@/constants";
 import logo from "@/assets/logo.jpeg";
+import { availabilityAPI } from "@/api/availability";
+import type { Timeslot } from "@/types";
 
 export default function AdminDashboard() {
     const navigate = useNavigate();
     const { logout: handleLogout } = useAuth();
 
+    // Schedule State
+    const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
+    const [slots, setSlots] = useState<Timeslot[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+
+    const fetchSchedule = async (date: string) => {
+        try {
+            setLoading(true);
+            const data = await availabilityAPI.getAvailability(date);
+            setSlots(data || []);
+            setError(null);
+        } catch (err) {
+            console.error("Failed to fetch schedule:", err);
+            setError("Failed to load schedule for this date.");
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        fetchSchedule(selectedDate);
+    }, [selectedDate]);
+
+    const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        setSelectedDate(e.target.value);
+    };
+
     const logout = async () => {
         await handleLogout();
         navigate("/", { replace: true });
+    };
+
+    const formatTime = (time24: string) => {
+        const [h, m] = time24.split(":");
+        const hour = Number(h);
+        return `${hour % 12 || 12}:${m} ${hour >= 12 ? "PM" : "AM"}`;
     };
 
     return (
@@ -53,17 +90,75 @@ export default function AdminDashboard() {
 
             {/* Content */}
             <main className="max-w-7xl mx-auto px-6 py-10 space-y-10">
-                <div>
-                    <h2 className="text-3xl font-bold text-gray-900">Admin Dashboard</h2>
-                    <p className="text-gray-600">Overview of turf operations and user management.</p>
+                <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+                    <div>
+                        <h2 className="text-3xl font-bold text-gray-900">Admin Dashboard</h2>
+                        <p className="text-gray-600">Overview of turf operations and user management.</p>
+                    </div>
+
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 bg-white p-4 rounded-xl shadow-sm border">
+                        <div className="flex items-center gap-2">
+                            <Calendar className="w-5 h-5 text-purple-600" />
+                            <input
+                                type="date"
+                                value={selectedDate}
+                                onChange={handleDateChange}
+                                className="border-none focus:ring-0 text-sm font-bold text-gray-700 outline-none cursor-pointer"
+                            />
+                        </div>
+                        <div className="hidden sm:block w-px h-8 bg-gray-200"></div>
+                        <div className="text-left sm:text-right">
+                            <p className="text-[10px] font-bold text-purple-600 uppercase tracking-wider">Viewing Schedule</p>
+                            <p className="text-sm font-bold text-gray-900">
+                                {new Date(selectedDate).toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })}
+                            </p>
+                        </div>
+                    </div>
                 </div>
 
-                {/* KPI Cards */}
-                <div className="grid md:grid-cols-3 gap-6">
-                    <Card title="Total Players" value="124" icon={<Users />} color="purple" />
-                    <Card title="Pending Approvals" value="12" icon={<Calendar />} color="purple" />
-                    <Card title="Monthly Revenue" value="LKR 120,000" icon={<BarChart3 />} color="purple" />
-                </div>
+                <Section title={`${selectedDate === new Date().toISOString().split('T')[0] ? "Today's" : "Daily"} Schedule`}>
+                    <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden mt-3">
+                        {loading ? (
+                            <div className="p-12 flex flex-col items-center justify-center text-gray-500 gap-3">
+                                <Loader2 className="w-8 h-8 animate-spin text-purple-600" />
+                                <p>Loading schedule...</p>
+                            </div>
+                        ) : error ? (
+                            <div className="p-8 text-center text-red-500 bg-red-50">
+                                {error}
+                            </div>
+                        ) : slots.length > 0 ? (
+                            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-7 divide-x divide-y divide-gray-100 border-b border-r border-gray-100">
+                                {slots.map((slot) => (
+                                    <div
+                                        key={slot.time_slot_id}
+                                        className={`p-4 flex flex-col items-center justify-center gap-2 transition-colors ${slot.status === 'booked' ? 'bg-purple-50' : 'bg-white hover:bg-gray-50'
+                                            }`}
+                                    >
+                                        <div className="flex items-center gap-1.5 text-xs font-bold text-gray-500">
+                                            <Clock className="w-3.5 h-3.5" />
+                                            {formatTime(slot.start_time)}
+                                        </div>
+                                        <div className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${slot.status === 'booked' ? 'bg-purple-100 text-purple-700' : 'bg-green-100 text-green-700'
+                                            }`}>
+                                            {slot.status}
+                                        </div>
+                                        {slot.status === 'booked' && (
+                                            <p className="text-[10px] text-purple-900 font-bold text-center leading-tight">
+                                                {slot.blocked_reason || "Practise Session"}
+                                            </p>
+                                        )}
+                                    </div>
+                                ))}
+                            </div>
+                        ) : (
+                            <div className="p-12 text-center text-gray-500">
+                                <Calendar className="w-12 h-12 mx-auto mb-3 opacity-20" />
+                                <p>No slots generated for today.</p>
+                            </div>
+                        )}
+                    </div>
+                </Section>
 
                 {/* Group 1: User Management */}
                 <Section title="User Management">

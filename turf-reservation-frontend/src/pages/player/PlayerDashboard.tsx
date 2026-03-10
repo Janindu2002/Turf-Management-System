@@ -102,6 +102,18 @@ export default function PlayerDashboard() {
         }
     };
 
+    // Handle Remove Event (only for rejected events)
+    const handleRemoveEvent = async (id: number) => {
+        if (!window.confirm("Remove this rejected event request?")) return;
+        try {
+            await eventAPI.deleteEvent(id);
+            setEvents(prev => prev.filter(e => e.event_id !== id));
+        } catch (err) {
+            console.error("Failed to remove event:", err);
+            alert("Failed to remove event. Please try again.");
+        }
+    };
+
     return (
         <div className="min-h-screen bg-gray-50">
 
@@ -313,6 +325,16 @@ export default function PlayerDashboard() {
                                             `}>
                                                 {event.status}
                                             </span>
+
+                                            {event.status === 'rejected' && (
+                                                <button
+                                                    onClick={() => handleRemoveEvent(event.event_id)}
+                                                    title="Remove event"
+                                                    className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg border border-transparent hover:border-red-100 transition-colors"
+                                                >
+                                                    <Trash2 className="w-4 h-4" />
+                                                </button>
+                                            )}
                                         </div>
                                     </div>
                                 ))}

@@ -15,6 +15,7 @@ export interface Timeslot {
     start_time: string;
     end_time: string;
     status: 'available' | 'booked' | 'blocked';
+    blocked_reason?: string;
 }
 
 // Booking Types

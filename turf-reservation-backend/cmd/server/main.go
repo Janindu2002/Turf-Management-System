@@ -33,7 +33,7 @@ func main() {
 	// Initialize services
 	emailService := services.NewEmailService(cfg)
 	bookingService := services.NewBookingService(bookingRepo, timeSlotRepo)
-	eventService := services.NewEventService(eventRepo)
+	eventService := services.NewEventService(eventRepo, timeSlotRepo)
 
 	// Ensure timeslots exist for the next 7 days
 	if err := timeSlotRepo.EnsureSlotsExist(); err != nil {

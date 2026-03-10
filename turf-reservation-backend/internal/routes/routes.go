@@ -82,6 +82,7 @@ func SetupRouter(authHandler *handlers.AuthHandler, availabilityHandler *handler
 			// Event routes
 			protected.POST("/events/host", eventHandler.HostEvent)
 			protected.GET("/events/my", eventHandler.GetMyEvents)
+			protected.DELETE("/events/:id", eventHandler.DeleteEvent)
 		}
 
 		// Admin routes
@@ -95,6 +96,7 @@ func SetupRouter(authHandler *handlers.AuthHandler, availabilityHandler *handler
 			admin.POST("/bookings/:id/reject", bookingHandler.RejectBooking)
 			// Event Management
 			admin.GET("/events/pending", eventHandler.GetPendingEvents)
+			admin.GET("/events", eventHandler.GetAllEvents)
 			admin.POST("/events/:id/approve", eventHandler.ApproveEvent)
 			admin.POST("/events/:id/reject", eventHandler.RejectEvent)
 		}

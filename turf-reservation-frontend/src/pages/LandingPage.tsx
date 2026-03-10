@@ -202,11 +202,17 @@ export default function LandingPage() {
                                     {slots.filter(s => s.status === 'booked').map((slot) => (
                                         <div
                                             key={slot.time_slot_id}
-                                            className="py-3 rounded-lg border bg-gray-50 text-gray-400 text-sm font-semibold flex flex-col items-center cursor-not-allowed"
+                                            className="py-3 px-2 rounded-lg border bg-gray-50 text-gray-400 text-sm font-semibold flex flex-col items-center cursor-not-allowed min-h-[72px] justify-center text-center"
                                         >
                                             <Clock className="w-4 h-4 mb-1 text-gray-300" />
                                             <span className="line-through">{formatTime(slot.start_time)}</span>
-                                            <span className="text-[10px] uppercase mt-1">Reserved</span>
+                                            {slot.blocked_reason ? (
+                                                <span className="text-[10px] uppercase mt-1 text-emerald-600 font-bold leading-tight">
+                                                    {slot.blocked_reason}
+                                                </span>
+                                            ) : (
+                                                <span className="text-[10px] uppercase mt-1">Reserved</span>
+                                            )}
                                         </div>
                                     ))}
                                 </div>
