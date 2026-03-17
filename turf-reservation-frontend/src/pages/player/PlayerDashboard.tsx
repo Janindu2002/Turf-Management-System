@@ -21,6 +21,7 @@ import { useAuth } from "@/context/AuthContext";
 import { bookingAPI } from "@/api/booking";
 import type { BookingResponse } from "@/api/booking";
 import { eventAPI, type EventResponse } from "@/api/event";
+import { playerAPI, type PlayerProfile } from "@/api/player";
 import Section from "@/components/ui/Section";
 import { ROUTES } from "@/constants";
 
@@ -28,7 +29,7 @@ import logo from "../../assets/logo.jpeg";
 
 export default function PlayerDashboard() {
     const navigate = useNavigate();
-    const { logout: handleLogout } = useAuth();
+    const { user, logout: handleLogout } = useAuth();
 
     // State
     const [bookings, setBookings] = useState<BookingResponse[]>([]);
@@ -37,6 +38,8 @@ export default function PlayerDashboard() {
     const [eventsLoading, setEventsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [eventsError, setEventsError] = useState<string | null>(null);
+    const [playerProfile, setPlayerProfile] = useState<PlayerProfile | null>(null);
+    const [togglingAvailability, setTogglingAvailability] = useState(false);
 
     const logout = async () => {
         await handleLogout();
@@ -57,6 +60,16 @@ export default function PlayerDashboard() {
         }
     };
 
+    // Fetch Player Profile
+    const fetchPlayerProfile = async () => {
+        try {
+            const data = await playerAPI.getMyProfile();
+            setPlayerProfile(data);
+        } catch (err) {
+            console.error("Failed to fetch player profile:", err);
+        }
+    };
+
     // Fetch Events
     const fetchEvents = async () => {
         try {
@@ -74,7 +87,34 @@ export default function PlayerDashboard() {
     useEffect(() => {
         fetchBookings();
         fetchEvents();
+        fetchPlayerProfile();
     }, []);
+
+    const toggleAvailability = async () => {
+        const currentStatus = playerProfile?.is_available || false;
+        try {
+            setTogglingAvailability(true);
+            const newStatus = !currentStatus;
+            await playerAPI.toggleAvailability(newStatus);
+            setPlayerProfile(prev => {
+                if (!prev) {
+                    return {
+                        user_id: user?.user_id || 0,
+                        name: user?.name || "",
+                        email: user?.email || "",
+                        is_available: newStatus,
+                        is_solo_player: false
+                    };
+                }
+                return { ...prev, is_available: newStatus };
+            });
+        } catch (err) {
+            console.error("Failed to toggle availability:", err);
+            alert("Failed to update availability.");
+        } finally {
+            setTogglingAvailability(false);
+        }
+    };
 
     // Handle Cancel
     const handleCancel = async (id: number) => {
@@ -369,16 +409,33 @@ export default function PlayerDashboard() {
                                 <p className="text-gray-600 text-sm mb-4">
                                     Looking for a game? Mark yourself as available.
                                 </p>
-                                <div className="flex items-center gap-3 bg-gray-50 p-3 rounded-lg border">
-                                    <div className="w-3 h-3 bg-gray-400 rounded-full"></div>
-                                    <span className="font-semibold text-gray-700">Status: <span className="text-gray-900">Unavailable</span></span>
-                                </div>
+                                <button
+                                    onClick={toggleAvailability}
+                                    disabled={togglingAvailability}
+                                    className={`w-full flex items-center gap-3 p-3 rounded-lg border transition-all ${playerProfile?.is_available
+                                        ? "bg-emerald-50 border-emerald-200 text-emerald-800"
+                                        : "bg-gray-50 border-gray-200 text-gray-700"
+                                        } hover:shadow-sm`}
+                                >
+                                    {togglingAvailability ? (
+                                        <Loader2 className="w-4 h-4 animate-spin" />
+                                    ) : (
+                                        <div className={`w-3 h-3 rounded-full ${playerProfile?.is_available ? "bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]" : "bg-gray-400"
+                                            }`}></div>
+                                    )}
+                                    <span className="font-semibold flex-1 text-left">
+                                        Status: <span>{playerProfile?.is_available ? "Available" : "Unavailable"}</span>
+                                    </span>
+                                    <span className="text-[10px] bg-white px-2 py-0.5 rounded border font-bold uppercase tracking-wider text-gray-400">
+                                        Toggle
+                                    </span>
+                                </button>
                             </div>
                             <button
                                 onClick={() => navigate(ROUTES.JOIN_SOLO_POOL)}
-                                className="mt-4 w-full border-2 border-emerald-600 text-emerald-700 font-bold py-2 rounded-lg hover:bg-emerald-50 flex items-center justify-center gap-2"
+                                className="mt-4 w-full border-2 border-emerald-500 text-emerald-600 font-bold py-2 rounded-lg hover:bg-emerald-50 flex items-center justify-center gap-2 transition-colors"
                             >
-                                <UserPlus className="w-4 h-4" /> Join Solo Pool
+                                <UserPlus className="w-4 h-4" /> {playerProfile?.is_solo_player ? "Edit Player Card" : "Join Solo Pool"}
                             </button>
                         </div>
                     </Section>

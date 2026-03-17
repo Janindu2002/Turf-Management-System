@@ -1,39 +1,46 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
     ArrowLeft,
     Users,
     CheckSquare,
     Square,
-    ArrowRight
+    ArrowRight,
+    Loader2
 } from "lucide-react";
 import { ROUTES } from "@/constants";
 import logo from "@/assets/logo.jpeg";
-
-/* =======================
-   Mock Data
-======================= */
-interface SoloPlayer {
-    id: number;
-    name: string;
-    position: string;
-    skill: string;
-    available_days: string[];
-}
-
-const SOLO_POOL: SoloPlayer[] = [
-    { id: 101, name: "David M.", position: "Striker", skill: "Advanced", available_days: ["Mon", "Wed"] },
-    { id: 102, name: "Suresh P.", position: "Goalkeeper", skill: "Intermediate", available_days: ["Mon", "Fri"] },
-    { id: 103, name: "Fazil A.", position: "Defender", skill: "Advanced", available_days: ["Mon", "Tue"] },
-    { id: 104, name: "John D.", position: "Midfielder", skill: "Beginner", available_days: ["Sat", "Sun"] },
-    { id: 105, name: "Malith K.", position: "Striker", skill: "Intermediate", available_days: ["Mon", "Wed"] },
-];
+import { playerAPI, type PlayerProfile } from "@/api/player";
 
 export default function SoloPlayerHandling() {
     const navigate = useNavigate();
+    const [players, setPlayers] = useState<PlayerProfile[]>([]);
     const [selectedIds, setSelectedIds] = useState<number[]>([]);
     const [isCreating, setIsCreating] = useState(false);
     const [teamName, setTeamName] = useState("");
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+
+    /* =======================
+       Effects
+    ======================= */
+    useEffect(() => {
+        const fetchPlayers = async () => {
+            try {
+                setLoading(true);
+                const data = await playerAPI.getAdminSoloPlayers();
+                setPlayers(data || []);
+                setError(null);
+            } catch (err) {
+                console.error("Failed to fetch solo players:", err);
+                setError("Failed to load solo player pool. Please try again.");
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchPlayers();
+    }, []);
 
     // Selection Logic
     const toggleSelection = (id: number) => {
@@ -90,33 +97,58 @@ export default function SoloPlayerHandling() {
                             </button>
                         </div>
 
-                        {SOLO_POOL.map((player) => {
-                            const isSelected = selectedIds.includes(player.id);
-                            return (
-                                <div
-                                    key={player.id}
-                                    onClick={() => toggleSelection(player.id)}
-                                    className={`
+                        {loading ? (
+                            <div className="p-12 flex flex-col items-center justify-center text-gray-500 bg-white rounded-xl border">
+                                <Loader2 className="w-8 h-8 animate-spin text-purple-600 mb-2" />
+                                <p>Loading player pool...</p>
+                            </div>
+                        ) : error ? (
+                            <div className="p-12 text-center text-red-500 bg-red-50 rounded-xl border border-red-200">
+                                {error}
+                            </div>
+                        ) : players.length > 0 ? (
+                            players.map((player) => {
+                                const isSelected = selectedIds.includes(player.user_id);
+                                return (
+                                    <div
+                                        key={player.user_id}
+                                        onClick={() => toggleSelection(player.user_id)}
+                                        className={`
                                         p-4 rounded-xl border shadow-sm cursor-pointer transition-all flex items-center gap-4
                                         ${isSelected ? "bg-purple-50 border-purple-500 ring-1 ring-purple-500" : "bg-white border-gray-200 hover:border-purple-300"}
                                     `}
-                                >
-                                    <div className="text-purple-600">
-                                        {isSelected ? <CheckSquare className="w-6 h-6" /> : <Square className="w-6 h-6 text-gray-300" />}
-                                    </div>
-                                    <div className="flex-1">
-                                        <h4 className="font-bold text-gray-900">{player.name}</h4>
-                                        <div className="flex gap-2 text-sm text-gray-500 mt-1">
-                                            <span className="bg-gray-100 px-2 py-0.5 rounded text-xs uppercase font-semibold">{player.position}</span>
-                                            <span className="bg-gray-100 px-2 py-0.5 rounded text-xs uppercase font-semibold">{player.skill}</span>
+                                    >
+                                        <div className="text-purple-600">
+                                            {isSelected ? <CheckSquare className="w-6 h-6" /> : <Square className="w-6 h-6 text-gray-300" />}
+                                        </div>
+                                        <div className="flex-1">
+                                            <div className="flex items-center justify-between">
+                                                <h4 className="font-bold text-gray-900">{player.name}</h4>
+                                                <div className="text-right text-xs text-purple-600 font-bold bg-purple-50 px-2 py-0.5 rounded">
+                                                    {player.is_available ? "Available Now" : "Register Only"}
+                                                </div>
+                                            </div>
+                                            <div className="flex gap-2 text-sm text-gray-500 mt-1">
+                                                <span className="bg-gray-100 px-2 py-0.5 rounded text-[10px] uppercase font-bold text-gray-600 border border-gray-200">{player.position || "N/A"}</span>
+                                                <span className="bg-gray-100 px-2 py-0.5 rounded text-[10px] uppercase font-bold text-gray-600 border border-gray-200">{player.skill_level || "N/A"}</span>
+                                                <span className="text-gray-300">|</span>
+                                                <span className="text-xs text-gray-400 font-medium">Days: {player.available_days || "Not specified"}</span>
+                                            </div>
+                                            {player.description && (
+                                                <p className="mt-2 text-xs text-gray-600 bg-gray-50 p-2 rounded-lg border border-gray-100 italic">
+                                                    "{player.description}"
+                                                </p>
+                                            )}
                                         </div>
                                     </div>
-                                    <div className="text-right text-xs text-gray-400">
-                                        Avail: {player.available_days.join(", ")}
-                                    </div>
-                                </div>
-                            )
-                        })}
+                                )
+                            })
+                        ) : (
+                            <div className="p-12 text-center text-gray-500 bg-white rounded-xl border">
+                                <Users className="w-12 h-12 mx-auto mb-3 opacity-20" />
+                                <p>No solo players registered yet.</p>
+                            </div>
+                        )}
                     </div>
 
                     {/* Right: Action Panel */}

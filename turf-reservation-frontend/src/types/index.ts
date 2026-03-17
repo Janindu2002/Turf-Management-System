@@ -1,9 +1,10 @@
 // User Types
 export interface User {
-    id: number;
+    user_id: number;
     email: string;
     name: string;
     role: 'admin' | 'coach' | 'player';
+    phone?: string;
     created_at: string;
 }
 

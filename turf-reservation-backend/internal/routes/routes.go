@@ -10,7 +10,7 @@ import (
 )
 
 // SetupRouter configures all application routes
-func SetupRouter(authHandler *handlers.AuthHandler, availabilityHandler *handlers.AvailabilityHandler, bookingHandler *handlers.BookingHandler, eventHandler *handlers.EventHandler, cfg *config.Config) *gin.Engine {
+func SetupRouter(authHandler *handlers.AuthHandler, availabilityHandler *handlers.AvailabilityHandler, bookingHandler *handlers.BookingHandler, eventHandler *handlers.EventHandler, playerHandler *handlers.PlayerHandler, cfg *config.Config) *gin.Engine {
 	// Set Gin mode based on environment
 	if cfg.AppEnv == "production" {
 		gin.SetMode(gin.ReleaseMode)
@@ -70,19 +70,25 @@ func SetupRouter(authHandler *handlers.AuthHandler, availabilityHandler *handler
 		}
 
 		// Protected routes - All authenticated users
-		protected := api.Group("")
-		protected.Use(middleware.AuthMiddleware(cfg.JWTSecret))
+		common := api.Group("")
+		common.Use(middleware.AuthMiddleware(cfg.JWTSecret))
 		{
 			// Booking routes
-			protected.POST("/bookings", bookingHandler.CreateBooking)
-			protected.GET("/bookings/my", bookingHandler.GetMyBookings)
-			protected.PUT("/bookings/:id/reschedule", bookingHandler.RescheduleBooking)
-			protected.POST("/bookings/:id/cancel", bookingHandler.CancelBooking)
-			protected.DELETE("/bookings/:id", bookingHandler.RemoveCancelledBooking)
+			common.POST("/bookings", bookingHandler.CreateBooking)
+			common.GET("/bookings/my", bookingHandler.GetMyBookings)
+			common.PUT("/bookings/:id/reschedule", bookingHandler.RescheduleBooking)
+			common.POST("/bookings/:id/cancel", bookingHandler.CancelBooking)
+			common.DELETE("/bookings/:id", bookingHandler.RemoveCancelledBooking)
+
 			// Event routes
-			protected.POST("/events/host", eventHandler.HostEvent)
-			protected.GET("/events/my", eventHandler.GetMyEvents)
-			protected.DELETE("/events/:id", eventHandler.DeleteEvent)
+			common.POST("/events/host", eventHandler.HostEvent)
+			common.GET("/events/my", eventHandler.GetMyEvents)
+			common.DELETE("/events/:id", eventHandler.DeleteEvent)
+
+			// Player routes
+			common.GET("/players/me", playerHandler.GetMyProfile)
+			common.PUT("/players/profile", playerHandler.UpdateProfile)
+			common.PUT("/players/availability", playerHandler.ToggleAvailability)
 		}
 
 		// Admin routes
@@ -99,6 +105,9 @@ func SetupRouter(authHandler *handlers.AuthHandler, availabilityHandler *handler
 			admin.GET("/events", eventHandler.GetAllEvents)
 			admin.POST("/events/:id/approve", eventHandler.ApproveEvent)
 			admin.POST("/events/:id/reject", eventHandler.RejectEvent)
+
+			// Solo Players Management
+			admin.GET("/players/solo", playerHandler.GetAdminSoloPlayers)
 		}
 
 		// Coach routes

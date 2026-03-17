@@ -29,11 +29,13 @@ func main() {
 	timeSlotRepo := repositories.NewTimeSlotRepository(db)
 	bookingRepo := repositories.NewBookingRepository(db)
 	eventRepo := repositories.NewEventRepository(db)
+	playerRepo := repositories.NewPlayerRepository(db)
 
 	// Initialize services
 	emailService := services.NewEmailService(cfg)
 	bookingService := services.NewBookingService(bookingRepo, timeSlotRepo)
 	eventService := services.NewEventService(eventRepo, timeSlotRepo)
+	playerService := services.NewPlayerService(playerRepo, userRepo)
 
 	// Ensure timeslots exist for the next 7 days
 	if err := timeSlotRepo.EnsureSlotsExist(); err != nil {
@@ -45,9 +47,10 @@ func main() {
 	availabilityHandler := handlers.NewAvailabilityHandler(timeSlotRepo)
 	bookingHandler := handlers.NewBookingHandler(bookingService)
 	eventHandler := handlers.NewEventHandler(eventService)
+	playerHandler := handlers.NewPlayerHandler(playerService)
 
 	// Setup routes
-	router := routes.SetupRouter(authHandler, availabilityHandler, bookingHandler, eventHandler, cfg)
+	router := routes.SetupRouter(authHandler, availabilityHandler, bookingHandler, eventHandler, playerHandler, cfg)
 
 	// Start server
 	serverAddr := ":" + cfg.ServerPort

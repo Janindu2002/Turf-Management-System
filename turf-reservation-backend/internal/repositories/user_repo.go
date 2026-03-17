@@ -53,7 +53,7 @@ func (r *UserRepository) CreateUser(user *models.User) error {
 // GetUserByEmail retrieves a user by email
 func (r *UserRepository) GetUserByEmail(email string) (*models.User, error) {
 	query := `
-		SELECT user_id, name, email, phone, password, role
+		SELECT user_id, name, email, COALESCE(phone, ''), password, role
 		FROM users
 		WHERE email = $1
 	`
@@ -81,7 +81,7 @@ func (r *UserRepository) GetUserByEmail(email string) (*models.User, error) {
 // GetUserByID retrieves a user by ID
 func (r *UserRepository) GetUserByID(userID int) (*models.User, error) {
 	query := `
-		SELECT user_id, name, email, phone, role
+		SELECT user_id, name, email, COALESCE(phone, ''), role
 		FROM users
 		WHERE user_id = $1
 	`

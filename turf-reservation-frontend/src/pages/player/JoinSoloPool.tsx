@@ -12,7 +12,7 @@ import {
     Activity,
     CalendarDays
 } from "lucide-react";
-import client from "@/api/client";
+import { playerAPI } from "@/api/player";
 import { useAuth } from "@/context/AuthContext";
 import { ROUTES } from "@/constants";
 import logo from "@/assets/logo.jpeg";
@@ -27,6 +27,7 @@ interface SoloPoolForm {
     position: string;
     skill_level: string;
     availability: string[];
+    is_solo_player: boolean;
     notes: string;
 }
 
@@ -36,7 +37,7 @@ const SKILL_LEVELS = ["Beginner", "Intermediate", "Advanced", "Professional"];
 
 export default function JoinSoloPool() {
     const navigate = useNavigate();
-    const { user } = useAuth(); // Assuming useAuth provides the basic user object
+    const { user, isLoading: authLoading } = useAuth(); // Assuming useAuth provides the basic user object
 
     // Form State
     const [formData, setFormData] = useState<SoloPoolForm>({
@@ -46,6 +47,7 @@ export default function JoinSoloPool() {
         position: "",
         skill_level: "Intermediate",
         availability: [],
+        is_solo_player: true,
         notes: ""
     });
 
@@ -57,31 +59,45 @@ export default function JoinSoloPool() {
     /* =======================
        Effects
     ======================= */
-    // Fetch existing user details to pre-fill the form
     useEffect(() => {
         const fetchUserProfile = async () => {
-            try {
-                // Example: Fetch from a profile endpoint
-                // const res = await client.get("/api/profile");
-                // const data = res.data;
+            if (authLoading) return;
 
-                // For now, simulating pre-fill with dummy data or context data
-                // In real implementation, replace with API response data
+            setFetchingProfile(true);
+            if (!user) {
+                setFetchingProfile(false);
+                return;
+            }
+
+            try {
+                const data = await playerAPI.getMyProfile();
                 setFormData(prev => ({
                     ...prev,
-                    full_name: user?.name || "John Doe", // Fallback if API fails
-                    email: user?.email || "john@example.com",
-                    phone: "0771234567" // Example pre-filled phone
+                    full_name: data?.name || user?.name || "",
+                    email: data?.email || user?.email || "",
+                    phone: data?.phone || user?.phone || "",
+                    position: data?.position || "",
+                    skill_level: data?.skill_level || "Intermediate",
+                    availability: data?.available_days ? data.available_days.split(",") : [],
+                    notes: data?.description || "",
+                    is_solo_player: typeof data?.is_solo_player === 'boolean' ? data.is_solo_player : true
                 }));
             } catch (err) {
                 console.error("Failed to fetch profile", err);
+                // Even on error, we can pre-fill from user context
+                setFormData(prev => ({
+                    ...prev,
+                    full_name: user?.name || "",
+                    email: user?.email || "",
+                    phone: user?.phone || "",
+                }));
             } finally {
                 setFetchingProfile(false);
             }
         };
 
         fetchUserProfile();
-    }, [user]);
+    }, [user, authLoading]);
 
     /* =======================
        Handlers
@@ -114,7 +130,15 @@ export default function JoinSoloPool() {
             }
 
             // API Call
-            await client.post("/api/solo-pool/join", formData);
+            await playerAPI.updateProfile({
+                name: formData.full_name,
+                phone: formData.phone,
+                position: formData.position,
+                skill_level: formData.skill_level,
+                available_days: formData.availability.join(","),
+                description: formData.notes,
+                is_solo_player: true
+            });
 
             setSuccess(true);
             // Optional: Redirect after delay
@@ -196,7 +220,7 @@ export default function JoinSoloPool() {
                                                 type="text"
                                                 name="full_name"
                                                 value={formData.full_name}
-                                                readOnly // Read-only because it's fetched from profile
+                                                readOnly
                                                 className="w-full pl-10 py-2 border rounded-lg bg-gray-50 text-gray-500 cursor-not-allowed"
                                             />
                                         </div>
@@ -274,11 +298,12 @@ export default function JoinSoloPool() {
                                     <Activity className="w-5 h-5 text-emerald-600" /> Logistics
                                 </h3>
 
-                                <div className="space-y-3 mb-6">
-                                    <label className="text-sm font-semibold text-gray-700 flex items-center gap-2">
-                                        <CalendarDays className="w-4 h-4" /> Usually Available On
+                                <div className="space-y-4 mb-6">
+                                    <label className="text-sm font-bold text-gray-700 flex items-center gap-2">
+                                        <CalendarDays className="w-5 h-5 text-emerald-600" /> Select Your Available Days
                                     </label>
-                                    <div className="flex flex-wrap gap-2">
+                                    <p className="text-xs text-gray-500 italic">Select common days you can play so admins can group you into teams.</p>
+                                    <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-7 gap-2">
                                         {DAYS_OF_WEEK.map((day) => {
                                             const isSelected = formData.availability.includes(day);
                                             return (
@@ -287,13 +312,14 @@ export default function JoinSoloPool() {
                                                     type="button"
                                                     onClick={() => toggleDay(day)}
                                                     className={`
-                                                        px-4 py-2 rounded-full text-sm font-medium border transition-all
+                                                        py-3 px-2 rounded-xl text-xs font-bold border transition-all flex flex-col items-center justify-center gap-1
                                                         ${isSelected
-                                                            ? "bg-emerald-600 text-white border-emerald-600 shadow-md"
-                                                            : "bg-white text-gray-600 border-gray-200 hover:border-emerald-500"}
+                                                            ? "bg-emerald-600 text-white border-emerald-600 shadow-md transform scale-105"
+                                                            : "bg-white text-gray-500 border-gray-100 hover:border-emerald-300 hover:bg-emerald-50"}
                                                     `}
                                                 >
-                                                    {day}
+                                                    <div className={`w-2 h-2 rounded-full ${isSelected ? "bg-white" : "bg-gray-200"}`}></div>
+                                                    {day.toUpperCase()}
                                                 </button>
                                             )
                                         })}

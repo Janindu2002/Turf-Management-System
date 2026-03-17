@@ -1,0 +1,115 @@
+package repositories
+
+import (
+	"database/sql"
+	"fmt"
+	"turf-reservation-backend/internal/models"
+)
+
+type PlayerRepository struct {
+	db *sql.DB
+}
+
+func NewPlayerRepository(db *sql.DB) *PlayerRepository {
+	return &PlayerRepository{db: db}
+}
+
+func (r *PlayerRepository) GetPlayerByUserID(userID int) (*models.Player, error) {
+	query := `
+		SELECT user_id, team_id, skill_level, position, COALESCE(available_days, ''), COALESCE(description, ''), is_solo_player, is_available, updated_at
+		FROM players
+		WHERE user_id = $1
+	`
+	player := &models.Player{}
+	err := r.db.QueryRow(query, userID).Scan(
+		&player.UserID,
+		&player.TeamID,
+		&player.SkillLevel,
+		&player.Position,
+		&player.AvailableDays,
+		&player.Description,
+		&player.IsSoloPlayer,
+		&player.IsAvailable,
+		&player.UpdatedAt,
+	)
+	if err == sql.ErrNoRows {
+		return nil, nil // Return nil if not found, not an error for upsert flow
+	}
+	if err != nil {
+		return nil, fmt.Errorf("failed to get player by user ID: %w", err)
+	}
+	return player, nil
+}
+
+func (r *PlayerRepository) UpsertPlayer(player *models.Player) error {
+	query := `
+		INSERT INTO players (user_id, team_id, skill_level, position, available_days, description, is_solo_player, is_available)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+		ON CONFLICT (user_id) DO UPDATE
+		SET team_id = EXCLUDED.team_id,
+		    skill_level = EXCLUDED.skill_level,
+		    position = EXCLUDED.position,
+		    available_days = EXCLUDED.available_days,
+		    description = EXCLUDED.description,
+		    is_solo_player = EXCLUDED.is_solo_player,
+		    is_available = EXCLUDED.is_available
+	`
+	_, err := r.db.Exec(
+		query,
+		player.UserID,
+		player.TeamID,
+		player.SkillLevel,
+		player.Position,
+		player.AvailableDays,
+		player.Description,
+		player.IsSoloPlayer,
+		player.IsAvailable,
+	)
+	if err != nil {
+		return fmt.Errorf("failed to upsert player: %w", err)
+	}
+	return nil
+}
+
+func (r *PlayerRepository) GetSoloPlayers() ([]models.PlayerProfile, error) {
+	query := `
+		SELECT u.user_id, u.name, u.email, COALESCE(u.phone, ''), 
+		       p.team_id, p.skill_level, p.position, COALESCE(p.available_days, ''), COALESCE(p.description, ''), p.is_solo_player, p.is_available
+		FROM users u
+		JOIN players p ON u.user_id = p.user_id
+		WHERE p.is_solo_player = true AND p.is_available = true
+	`
+	rows, err := r.db.Query(query)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get solo players: %w", err)
+	}
+	defer rows.Close()
+
+	var players []models.PlayerProfile
+	for rows.Next() {
+		var p models.PlayerProfile
+		err := rows.Scan(
+			&p.UserID, &p.Name, &p.Email, &p.Phone,
+			&p.TeamID, &p.SkillLevel, &p.Position, &p.AvailableDays, &p.Description, &p.IsSoloPlayer, &p.IsAvailable,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan solo player: %w", err)
+		}
+		players = append(players, p)
+	}
+	return players, nil
+}
+
+func (r *PlayerRepository) UpdateAvailability(userID int, isAvailable bool) error {
+	query := `
+		INSERT INTO players (user_id, is_available)
+		VALUES ($1, $2)
+		ON CONFLICT (user_id) DO UPDATE
+		SET is_available = EXCLUDED.is_available
+	`
+	_, err := r.db.Exec(query, userID, isAvailable)
+	if err != nil {
+		return fmt.Errorf("failed to update player availability: %w", err)
+	}
+	return nil
+}
