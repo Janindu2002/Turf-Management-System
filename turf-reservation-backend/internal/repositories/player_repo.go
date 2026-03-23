@@ -16,7 +16,7 @@ func NewPlayerRepository(db *sql.DB) *PlayerRepository {
 
 func (r *PlayerRepository) GetPlayerByUserID(userID int) (*models.Player, error) {
 	query := `
-		SELECT user_id, team_id, skill_level, position, COALESCE(available_days, ''), COALESCE(description, ''), is_solo_player, is_available, updated_at
+		SELECT user_id, team_id, skill_level, position, COALESCE(available_days, ''), COALESCE(description, ''), is_solo_player, is_available, has_team, updated_at
 		FROM players
 		WHERE user_id = $1
 	`
@@ -30,6 +30,7 @@ func (r *PlayerRepository) GetPlayerByUserID(userID int) (*models.Player, error)
 		&player.Description,
 		&player.IsSoloPlayer,
 		&player.IsAvailable,
+		&player.HasTeam,
 		&player.UpdatedAt,
 	)
 	if err == sql.ErrNoRows {
@@ -43,8 +44,8 @@ func (r *PlayerRepository) GetPlayerByUserID(userID int) (*models.Player, error)
 
 func (r *PlayerRepository) UpsertPlayer(player *models.Player) error {
 	query := `
-		INSERT INTO players (user_id, team_id, skill_level, position, available_days, description, is_solo_player, is_available)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+		INSERT INTO players (user_id, team_id, skill_level, position, available_days, description, is_solo_player, is_available, has_team)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
 		ON CONFLICT (user_id) DO UPDATE
 		SET team_id = EXCLUDED.team_id,
 		    skill_level = EXCLUDED.skill_level,
@@ -52,7 +53,8 @@ func (r *PlayerRepository) UpsertPlayer(player *models.Player) error {
 		    available_days = EXCLUDED.available_days,
 		    description = EXCLUDED.description,
 		    is_solo_player = EXCLUDED.is_solo_player,
-		    is_available = EXCLUDED.is_available
+		    is_available = EXCLUDED.is_available,
+		    has_team = EXCLUDED.has_team
 	`
 	_, err := r.db.Exec(
 		query,
@@ -64,6 +66,7 @@ func (r *PlayerRepository) UpsertPlayer(player *models.Player) error {
 		player.Description,
 		player.IsSoloPlayer,
 		player.IsAvailable,
+		player.HasTeam,
 	)
 	if err != nil {
 		return fmt.Errorf("failed to upsert player: %w", err)
@@ -74,7 +77,7 @@ func (r *PlayerRepository) UpsertPlayer(player *models.Player) error {
 func (r *PlayerRepository) GetSoloPlayers() ([]models.PlayerProfile, error) {
 	query := `
 		SELECT u.user_id, u.name, u.email, COALESCE(u.phone, ''), 
-		       p.team_id, p.skill_level, p.position, COALESCE(p.available_days, ''), COALESCE(p.description, ''), p.is_solo_player, p.is_available
+		       p.team_id, p.skill_level, p.position, COALESCE(p.available_days, ''), COALESCE(p.description, ''), p.is_solo_player, p.is_available, p.has_team
 		FROM users u
 		JOIN players p ON u.user_id = p.user_id
 		WHERE p.is_solo_player = true AND p.is_available = true
@@ -90,7 +93,7 @@ func (r *PlayerRepository) GetSoloPlayers() ([]models.PlayerProfile, error) {
 		var p models.PlayerProfile
 		err := rows.Scan(
 			&p.UserID, &p.Name, &p.Email, &p.Phone,
-			&p.TeamID, &p.SkillLevel, &p.Position, &p.AvailableDays, &p.Description, &p.IsSoloPlayer, &p.IsAvailable,
+			&p.TeamID, &p.SkillLevel, &p.Position, &p.AvailableDays, &p.Description, &p.IsSoloPlayer, &p.IsAvailable, &p.HasTeam,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan solo player: %w", err)

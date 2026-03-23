@@ -21,6 +21,7 @@ import (
 
 type AuthHandler struct {
 	userRepo     *repositories.UserRepository
+	playerRepo   *repositories.PlayerRepository
 	resetRepo    *repositories.PasswordResetRepository
 	logRepo      *repositories.SecurityLogRepository
 	emailService *services.EmailService
@@ -28,9 +29,10 @@ type AuthHandler struct {
 }
 
 // NewAuthHandler creates a new auth handler
-func NewAuthHandler(userRepo *repositories.UserRepository, resetRepo *repositories.PasswordResetRepository, logRepo *repositories.SecurityLogRepository, emailService *services.EmailService, cfg *config.Config) *AuthHandler {
+func NewAuthHandler(userRepo *repositories.UserRepository, playerRepo *repositories.PlayerRepository, resetRepo *repositories.PasswordResetRepository, logRepo *repositories.SecurityLogRepository, emailService *services.EmailService, cfg *config.Config) *AuthHandler {
 	return &AuthHandler{
 		userRepo:     userRepo,
+		playerRepo:   playerRepo,
 		resetRepo:    resetRepo,
 		logRepo:      logRepo,
 		emailService: emailService,
@@ -45,6 +47,7 @@ type RegisterRequest struct {
 	Phone    string `json:"phone"`
 	Password string `json:"password" binding:"required"`
 	Role     string `json:"role" binding:"required,oneof=player coach"`
+	HasTeam  *bool  `json:"has_team"`
 }
 
 // LoginRequest represents login request body
@@ -130,6 +133,22 @@ func (h *AuthHandler) Register(c *gin.Context) {
 			"error":   "Failed to create user",
 		})
 		return
+	}
+
+	// If the role is player, create a player record
+	if req.Role == "player" {
+		hasTeam := false
+		if req.HasTeam != nil {
+			hasTeam = *req.HasTeam
+		}
+		player := &models.Player{
+			UserID:  user.UserID,
+			HasTeam: hasTeam,
+		}
+		if err := h.playerRepo.UpsertPlayer(player); err != nil {
+			// We log the error but don't fail the registration as the user is already created
+			h.recordLog(c, &user.UserID, "registration_player", "failure", "Failed to create player record: "+err.Error())
+		}
 	}
 
 	h.recordLog(c, &user.UserID, "registration", "success", "User registered successfully")

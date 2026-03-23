@@ -103,7 +103,8 @@ export default function PlayerDashboard() {
                         name: user?.name || "",
                         email: user?.email || "",
                         is_available: newStatus,
-                        is_solo_player: false
+                        is_solo_player: false,
+                        has_team: false
                     };
                 }
                 return { ...prev, is_available: newStatus };
@@ -400,68 +401,70 @@ export default function PlayerDashboard() {
                 </Section>
 
                 {/* Community & Events Section */}
-                <div className="grid md:grid-cols-2 gap-6">
+                {!playerProfile?.has_team && (
+                    <div className="grid md:grid-cols-2 gap-6">
 
-                    {/* 1. Solo Player Registry */}
-                    <Section title="Solo Player Registry">
-                        <div className="bg-white p-6 rounded-xl shadow-sm border h-full flex flex-col justify-between">
-                            <div>
-                                <p className="text-gray-600 text-sm mb-4">
-                                    Looking for a game? Mark yourself as available.
-                                </p>
+                        {/* 1. Solo Player Registry */}
+                        <Section title="Solo Player Registry">
+                            <div className="bg-white p-6 rounded-xl shadow-sm border h-full flex flex-col justify-between">
+                                <div>
+                                    <p className="text-gray-600 text-sm mb-4">
+                                        Looking for a game? Mark yourself as available.
+                                    </p>
+                                    <button
+                                        onClick={toggleAvailability}
+                                        disabled={togglingAvailability}
+                                        className={`w-full flex items-center gap-3 p-3 rounded-lg border transition-all ${playerProfile?.is_available
+                                            ? "bg-emerald-50 border-emerald-200 text-emerald-800"
+                                            : "bg-gray-50 border-gray-200 text-gray-700"
+                                            } hover:shadow-sm`}
+                                    >
+                                        {togglingAvailability ? (
+                                            <Loader2 className="w-4 h-4 animate-spin" />
+                                        ) : (
+                                            <div className={`w-3 h-3 rounded-full ${playerProfile?.is_available ? "bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]" : "bg-gray-400"
+                                                }`}></div>
+                                        )}
+                                        <span className="font-semibold flex-1 text-left">
+                                            Status: <span>{playerProfile?.is_available ? "Available" : "Unavailable"}</span>
+                                        </span>
+                                        <span className="text-[10px] bg-white px-2 py-0.5 rounded border font-bold uppercase tracking-wider text-gray-400">
+                                            Toggle
+                                        </span>
+                                    </button>
+                                </div>
                                 <button
-                                    onClick={toggleAvailability}
-                                    disabled={togglingAvailability}
-                                    className={`w-full flex items-center gap-3 p-3 rounded-lg border transition-all ${playerProfile?.is_available
-                                        ? "bg-emerald-50 border-emerald-200 text-emerald-800"
-                                        : "bg-gray-50 border-gray-200 text-gray-700"
-                                        } hover:shadow-sm`}
+                                    onClick={() => navigate(ROUTES.JOIN_SOLO_POOL)}
+                                    className="mt-4 w-full border-2 border-emerald-500 text-emerald-600 font-bold py-2 rounded-lg hover:bg-emerald-50 flex items-center justify-center gap-2 transition-colors"
                                 >
-                                    {togglingAvailability ? (
-                                        <Loader2 className="w-4 h-4 animate-spin" />
-                                    ) : (
-                                        <div className={`w-3 h-3 rounded-full ${playerProfile?.is_available ? "bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]" : "bg-gray-400"
-                                            }`}></div>
-                                    )}
-                                    <span className="font-semibold flex-1 text-left">
-                                        Status: <span>{playerProfile?.is_available ? "Available" : "Unavailable"}</span>
-                                    </span>
-                                    <span className="text-[10px] bg-white px-2 py-0.5 rounded border font-bold uppercase tracking-wider text-gray-400">
-                                        Toggle
-                                    </span>
+                                    <UserPlus className="w-4 h-4" /> {playerProfile?.is_solo_player ? "Edit Player Card" : "Join Solo Pool"}
                                 </button>
                             </div>
-                            <button
-                                onClick={() => navigate(ROUTES.JOIN_SOLO_POOL)}
-                                className="mt-4 w-full border-2 border-emerald-500 text-emerald-600 font-bold py-2 rounded-lg hover:bg-emerald-50 flex items-center justify-center gap-2 transition-colors"
-                            >
-                                <UserPlus className="w-4 h-4" /> {playerProfile?.is_solo_player ? "Edit Player Card" : "Join Solo Pool"}
-                            </button>
-                        </div>
-                    </Section>
+                        </Section>
 
-                    {/* 2. Find a Team */}
-                    <Section title="Find a Team">
-                        <div className="bg-white p-6 rounded-xl shadow-sm border h-full flex flex-col justify-between">
-                            <div>
-                                <p className="text-gray-600 text-sm mb-4">
-                                    Browse existing teams or request to join a league.
-                                </p>
-                                <div className="flex gap-2">
-                                    <span className="text-xs bg-gray-100 px-2 py-1 rounded text-gray-600">3 Hiring</span>
-                                    <span className="text-xs bg-gray-100 px-2 py-1 rounded text-gray-600">Leagues</span>
+                        {/* 2. Find a Team */}
+                        <Section title="Find a Team">
+                            <div className="bg-white p-6 rounded-xl shadow-sm border h-full flex flex-col justify-between">
+                                <div>
+                                    <p className="text-gray-600 text-sm mb-4">
+                                        Browse existing teams or request to join a league.
+                                    </p>
+                                    <div className="flex gap-2">
+                                        <span className="text-xs bg-gray-100 px-2 py-1 rounded text-gray-600">3 Hiring</span>
+                                        <span className="text-xs bg-gray-100 px-2 py-1 rounded text-gray-600">Leagues</span>
+                                    </div>
                                 </div>
+                                <button
+                                    onClick={() => navigate(ROUTES.FIND_TEAM)}
+                                    className="mt-4 w-full bg-gray-900 text-white font-bold py-2 rounded-lg hover:bg-gray-800 flex items-center justify-center gap-2"
+                                >
+                                    <Search className="w-4 h-4" /> Browse Teams
+                                </button>
                             </div>
-                            <button
-                                onClick={() => navigate(ROUTES.FIND_TEAM)}
-                                className="mt-4 w-full bg-gray-900 text-white font-bold py-2 rounded-lg hover:bg-gray-800 flex items-center justify-center gap-2"
-                            >
-                                <Search className="w-4 h-4" /> Browse Teams
-                            </button>
-                        </div>
-                    </Section>
+                        </Section>
 
-                </div>
+                    </div>
+                )}
 
             </main>
         </div >

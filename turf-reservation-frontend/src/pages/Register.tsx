@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Eye, EyeOff } from "lucide-react";
+import { Eye, EyeOff, Upload, X, FileText } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { ROUTES } from "@/constants";
 
@@ -39,6 +39,9 @@ export default function Register() {
     const [password, setPassword] = useState("");
     const [showPassword, setShowPassword] = useState(false);
     const [role, setRole] = useState<Role>("player");
+    const [hasTeam, setHasTeam] = useState(false);
+    const [coachCertificate, setCoachCertificate] = useState<File | null>(null);
+    const [isDragging, setIsDragging] = useState(false);
     const [errors, setErrors] = useState<Errors>({});
 
     /* =====================
@@ -82,6 +85,7 @@ export default function Register() {
                 phone,
                 password,
                 role,
+                has_team: role === "player" ? hasTeam : undefined,
             });
 
             // AuthContext handles login after registration
@@ -100,6 +104,15 @@ export default function Register() {
                     "Registration failed. Please try again.",
             });
         }
+    };
+    
+    const handleFileChange = (file: File | null) => {
+        if (file && file.size > 5 * 1024 * 1024) {
+            setErrors(prev => ({ ...prev, form: "File size should be less than 5MB" }));
+            return;
+        }
+        setCoachCertificate(file);
+        setErrors(prev => ({ ...prev, form: undefined }));
     };
 
     /* =====================
@@ -145,6 +158,7 @@ export default function Register() {
                             onChange={(e) => setEmail(e.target.value)}
                             className="w-full px-4 py-3 bg-gray-50 border-2 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500"
                             disabled={isLoading}
+                            autoComplete="off"
                         />
                         {errors.email && <p className="text-sm text-red-600 mt-1">{errors.email}</p>}
                     </div>
@@ -177,6 +191,7 @@ export default function Register() {
                                 onChange={(e) => setPassword(e.target.value)}
                                 className="w-full px-4 py-3 bg-gray-50 border-2 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 pr-12"
                                 disabled={isLoading}
+                                autoComplete="new-password"
                             />
                             <button
                                 type="button"
@@ -206,6 +221,106 @@ export default function Register() {
                             <option value="coach">Coach</option>
                         </select>
                     </div>
+
+                    {/* Has Team Selection (Conditional for Player) */}
+                    {role === "player" && (
+                        <div>
+                            <label className="text-sm font-semibold block mb-2">
+                                Already have a team?
+                            </label>
+                            <select
+                                value={hasTeam ? "yes" : "no"}
+                                onChange={(e) => setHasTeam(e.target.value === "yes")}
+                                className="w-full px-4 py-3 bg-gray-50 border-2 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all"
+                                disabled={isLoading}
+                            >
+                                <option value="no">No</option>
+                                <option value="yes">Yes</option>
+                            </select>
+                        </div>
+                    )}
+
+                    {/* Coach Certificate Upload (Conditional for Coach) */}
+                    {role === "coach" && (
+                        <div>
+                            <label className="text-sm font-semibold block mb-2">
+                                Coaching Certificate / Qualification
+                            </label>
+                            {!coachCertificate ? (
+                                <div
+                                    onDragOver={(e) => {
+                                        e.preventDefault();
+                                        setIsDragging(true);
+                                    }}
+                                    onDragLeave={() => setIsDragging(false)}
+                                    onDrop={(e) => {
+                                        e.preventDefault();
+                                        setIsDragging(false);
+                                        const file = e.dataTransfer.files[0];
+                                        if (file) handleFileChange(file);
+                                    }}
+                                    onClick={() => document.getElementById("certificate-upload")?.click()}
+                                    className={`
+                                        relative group cursor-pointer
+                                        border-2 border-dashed rounded-2xl p-8
+                                        flex flex-col items-center justify-center gap-3
+                                        transition-all duration-300
+                                        ${isDragging 
+                                            ? "border-emerald-500 bg-emerald-50 scale-[0.99]" 
+                                            : "border-gray-200 bg-gray-50 hover:border-emerald-400 hover:bg-emerald-50/30"
+                                        }
+                                    `}
+                                >
+                                    <div className={`
+                                        w-12 h-12 rounded-full flex items-center justify-center
+                                        transition-colors duration-300
+                                        ${isDragging ? "bg-emerald-500 text-white" : "bg-emerald-100 text-emerald-600 group-hover:bg-emerald-500 group-hover:text-white"}
+                                    `}>
+                                        <Upload className="w-6 h-6" />
+                                    </div>
+                                    <div className="text-center">
+                                        <p className="text-sm font-bold text-gray-700">
+                                            Click or drag file to upload
+                                        </p>
+                                        <p className="text-xs text-gray-400 mt-1">
+                                            PDF, PNG, JPG (max 5MB)
+                                        </p>
+                                    </div>
+                                    <input
+                                        id="certificate-upload"
+                                        type="file"
+                                        accept=".pdf,.png,.jpg,.jpeg"
+                                        className="hidden"
+                                        onChange={(e) => {
+                                            const file = e.target.files?.[0];
+                                            if (file) handleFileChange(file);
+                                        }}
+                                    />
+                                </div>
+                            ) : (
+                                <div className="flex items-center gap-4 p-4 bg-emerald-50 border-2 border-emerald-200 rounded-2xl animate-in fade-in slide-in-from-top-2">
+                                    <div className="w-10 h-10 bg-emerald-100 rounded-xl flex items-center justify-center text-emerald-600">
+                                        <FileText className="w-5 h-5" />
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                        <p className="text-sm font-bold text-gray-700 truncate">
+                                            {coachCertificate.name}
+                                        </p>
+                                        <p className="text-xs text-gray-500">
+                                            {(coachCertificate.size / (1024 * 1024)).toFixed(2)} MB
+                                        </p>
+                                    </div>
+                                    <button
+                                        type="button"
+                                        onClick={() => setCoachCertificate(null)}
+                                        className="p-2 hover:bg-emerald-200 rounded-full text-emerald-600 transition-colors"
+                                    >
+                                        <X className="w-4 h-4" />
+                                    </button>
+                                </div>
+                            )}
+                        </div>
+                    )}
 
                     <button
                         type="submit"

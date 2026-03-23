@@ -44,6 +44,7 @@ func (s *PlayerService) GetPlayerProfile(userID int) (*models.PlayerProfile, err
 		profile.Description = player.Description
 		profile.IsSoloPlayer = player.IsSoloPlayer
 		profile.IsAvailable = player.IsAvailable
+		profile.HasTeam = player.HasTeam
 	}
 
 	return profile, nil
@@ -71,6 +72,7 @@ func (s *PlayerService) UpdatePlayerProfile(userID int, profile *models.PlayerPr
 		Description:   profile.Description,
 		IsSoloPlayer:  profile.IsSoloPlayer,
 		IsAvailable:   profile.IsAvailable,
+		HasTeam:       profile.HasTeam,
 	}
 
 	return s.playerRepo.UpsertPlayer(player)

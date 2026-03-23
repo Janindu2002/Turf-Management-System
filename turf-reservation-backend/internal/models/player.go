@@ -12,6 +12,7 @@ type Player struct {
 	Description   string    `json:"description,omitempty"`
 	IsSoloPlayer  bool      `json:"is_solo_player"`
 	IsAvailable   bool      `json:"is_available"`
+	HasTeam       bool      `json:"has_team"`
 	UpdatedAt     time.Time `json:"updated_at,omitempty"`
 }
 
@@ -28,4 +29,5 @@ type PlayerProfile struct {
 	Description   string `json:"description"`
 	IsSoloPlayer  bool   `json:"is_solo_player"`
 	IsAvailable   bool   `json:"is_available"`
+	HasTeam       bool   `json:"has_team"`
 }

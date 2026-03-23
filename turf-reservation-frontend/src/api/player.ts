@@ -11,6 +11,7 @@ export interface PlayerProfile {
     description?: string;
     is_solo_player: boolean;
     is_available: boolean;
+    has_team: boolean;
 }
 
 export const playerAPI = {

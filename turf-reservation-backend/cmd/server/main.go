@@ -43,7 +43,7 @@ func main() {
 	}
 
 	// Initialize handlers
-	authHandler := handlers.NewAuthHandler(userRepo, resetRepo, logRepo, emailService, cfg)
+	authHandler := handlers.NewAuthHandler(userRepo, playerRepo, resetRepo, logRepo, emailService, cfg)
 	availabilityHandler := handlers.NewAvailabilityHandler(timeSlotRepo)
 	bookingHandler := handlers.NewBookingHandler(bookingService)
 	eventHandler := handlers.NewEventHandler(eventService)

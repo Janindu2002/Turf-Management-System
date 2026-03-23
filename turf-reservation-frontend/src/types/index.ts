@@ -73,6 +73,7 @@ export interface RegisterData {
     name: string;
     phone?: string;
     role: 'player' | 'coach';
+    has_team?: boolean;
 }
 
 export interface AuthResponse {
