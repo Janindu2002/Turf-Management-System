@@ -11,6 +11,7 @@ import {
 import { ROUTES } from "@/constants";
 import logo from "@/assets/logo.jpeg";
 import { playerAPI, type PlayerProfile } from "@/api/player";
+import { teamAPI } from "@/api/team";
 
 export default function SoloPlayerHandling() {
     const navigate = useNavigate();
@@ -18,6 +19,11 @@ export default function SoloPlayerHandling() {
     const [selectedIds, setSelectedIds] = useState<number[]>([]);
     const [isCreating, setIsCreating] = useState(false);
     const [teamName, setTeamName] = useState("");
+    const [skillLevel, setSkillLevel] = useState("Intermediate");
+    const [totalMembers, setTotalMembers] = useState(11);
+    const [captainName, setCaptainName] = useState("");
+    const [captainContact, setCaptainContact] = useState("");
+    const [lookingPositions, setLookingPositions] = useState("");
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
@@ -49,13 +55,34 @@ export default function SoloPlayerHandling() {
         );
     };
 
-    const handleCreateTeam = (e: React.FormEvent) => {
+    const handleCreateTeam = async (e: React.FormEvent) => {
         e.preventDefault();
-        alert(`Team "${teamName}" created with ${selectedIds.length} players!`);
-        // API Call would happen here
-        setSelectedIds([]);
-        setIsCreating(false);
-        setTeamName("");
+        try {
+            setLoading(true);
+            await teamAPI.createTeam({
+                team_name: teamName,
+                team_skill_level: skillLevel,
+                turf_name: "Astro Turf Main", // Default or could be a field
+                total_member: totalMembers,
+                current_member: selectedIds.length,
+                captain_name: captainName,
+                captain_contact: captainContact,
+                looking_positions: lookingPositions
+            });
+            
+            alert(`Team "${teamName}" created successfully with ${selectedIds.length} players!`);
+            setSelectedIds([]);
+            setIsCreating(false);
+            setTeamName("");
+            setCaptainName("");
+            setCaptainContact("");
+            setLookingPositions("");
+        } catch (err) {
+            console.error("Failed to create team:", err);
+            alert("Failed to create team. Please try again.");
+        } finally {
+            setLoading(false);
+        }
     };
 
     return (
@@ -173,6 +200,64 @@ export default function SoloPlayerHandling() {
                                             onChange={(e) => setTeamName(e.target.value)}
                                             placeholder="e.g. Mixed Team A"
                                             className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 outline-none"
+                                        />
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div>
+                                            <label className="text-sm font-semibold text-gray-700 block mb-1">Skill Level</label>
+                                            <select
+                                                value={skillLevel}
+                                                onChange={(e) => setSkillLevel(e.target.value)}
+                                                className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 outline-none"
+                                            >
+                                                <option value="Beginner">Beginner</option>
+                                                <option value="Intermediate">Intermediate</option>
+                                                <option value="Advanced">Advanced</option>
+                                                <option value="Professional">Professional</option>
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label className="text-sm font-semibold text-gray-700 block mb-1">Total Needed</label>
+                                            <input
+                                                type="number"
+                                                required
+                                                min={selectedIds.length}
+                                                value={totalMembers}
+                                                onChange={(e) => setTotalMembers(parseInt(e.target.value))}
+                                                className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 outline-none"
+                                            />
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <label className="text-sm font-semibold text-gray-700 block mb-1">Captain Name</label>
+                                        <input
+                                            type="text"
+                                            required
+                                            value={captainName}
+                                            onChange={(e) => setCaptainName(e.target.value)}
+                                            placeholder="Full Name"
+                                            className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 outline-none"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="text-sm font-semibold text-gray-700 block mb-1">Captain Contact</label>
+                                        <input
+                                            type="text"
+                                            required
+                                            value={captainContact}
+                                            onChange={(e) => setCaptainContact(e.target.value)}
+                                            placeholder="Phone or Email"
+                                            className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 outline-none"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="text-sm font-semibold text-gray-700 block mb-1">Looking For (Positions)</label>
+                                        <textarea
+                                            value={lookingPositions}
+                                            onChange={(e) => setLookingPositions(e.target.value)}
+                                            placeholder="e.g. Defender, Striker"
+                                            rows={2}
+                                            className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 outline-none resize-none"
                                         />
                                     </div>
                                     <div className="flex gap-2">

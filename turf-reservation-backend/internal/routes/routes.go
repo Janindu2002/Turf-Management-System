@@ -10,7 +10,7 @@ import (
 )
 
 // SetupRouter configures all application routes
-func SetupRouter(authHandler *handlers.AuthHandler, availabilityHandler *handlers.AvailabilityHandler, bookingHandler *handlers.BookingHandler, eventHandler *handlers.EventHandler, playerHandler *handlers.PlayerHandler, cfg *config.Config) *gin.Engine {
+func SetupRouter(authHandler *handlers.AuthHandler, availabilityHandler *handlers.AvailabilityHandler, bookingHandler *handlers.BookingHandler, eventHandler *handlers.EventHandler, playerHandler *handlers.PlayerHandler, teamHandler *handlers.TeamHandler, cfg *config.Config) *gin.Engine {
 	// Set Gin mode based on environment
 	if cfg.AppEnv == "production" {
 		gin.SetMode(gin.ReleaseMode)
@@ -29,7 +29,7 @@ func SetupRouter(authHandler *handlers.AuthHandler, availabilityHandler *handler
 
 	// CORS configuration
 	corsConfig := cors.Config{
-		AllowOrigins:     []string{cfg.AllowedOrigin},
+		AllowOrigins:     []string{cfg.AllowedOrigin, "http://127.0.0.1:5173"},
 		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
 		AllowHeaders:     []string{"Origin", "Content-Type", "Accept", "Authorization"},
 		ExposeHeaders:    []string{"Content-Length"},
@@ -89,6 +89,9 @@ func SetupRouter(authHandler *handlers.AuthHandler, availabilityHandler *handler
 			common.GET("/players/me", playerHandler.GetMyProfile)
 			common.PUT("/players/profile", playerHandler.UpdateProfile)
 			common.PUT("/players/availability", playerHandler.ToggleAvailability)
+
+			// Team routes
+			common.GET("/teams", teamHandler.GetTeams)
 		}
 
 		// Admin routes
@@ -108,6 +111,9 @@ func SetupRouter(authHandler *handlers.AuthHandler, availabilityHandler *handler
 
 			// Solo Players Management
 			admin.GET("/players/solo", playerHandler.GetAdminSoloPlayers)
+
+			// Team Management
+			admin.POST("/teams", teamHandler.CreateTeam)
 		}
 
 		// Coach routes
