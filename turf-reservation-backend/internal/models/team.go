@@ -1,6 +1,8 @@
 package models
 
 // Team represents a team in the system
+import "time"
+
 type Team struct {
 	TeamID           int    `json:"team_id"`
 	TeamName         string `json:"team_name"`
@@ -10,5 +12,7 @@ type Team struct {
 	CurrentMember    int    `json:"current_member"`
 	CaptainName      string `json:"captain_name"`
 	CaptainContact   string `json:"captain_contact"`
-	LookingPositions string `json:"looking_positions"`
+	LookingPositions string    `json:"looking_positions"`
+	PlayerIDs        []int     `json:"player_ids"`
+	CreatedAt        time.Time `json:"created_at"`
 }

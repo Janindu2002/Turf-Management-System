@@ -8,7 +8,8 @@ import {
     Medal,
     MapPin,
     CheckCircle2,
-    Loader2
+    Loader2,
+    Phone
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { ROUTES } from "@/constants";
@@ -171,6 +172,10 @@ export default function FindTeam() {
                                             <div className="flex items-center gap-2">
                                                 <Medal className="w-4 h-4 text-gray-400" />
                                                 <span>Captain: {team.captain_name}</span>
+                                            </div>
+                                            <div className="flex items-center gap-2">
+                                                <Phone className="w-4 h-4 text-gray-400" />
+                                                <span>Contact: {team.captain_contact}</span>
                                             </div>
                                         </div>
 

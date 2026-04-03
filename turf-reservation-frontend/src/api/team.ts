@@ -10,6 +10,7 @@ export interface Team {
     captain_name: string;
     captain_contact: string;
     looking_positions: string;
+    player_ids: number[];
 }
 
 export const teamAPI = {
@@ -21,5 +22,10 @@ export const teamAPI = {
     getTeams: async () => {
         const response = await client.get("/api/teams");
         return response.data.data;
+    },
+
+    deleteTeam: async (id: number) => {
+        const response = await client.delete(`/api/admin/teams/${id}`);
+        return response.data;
     }
 };

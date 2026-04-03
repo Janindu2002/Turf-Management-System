@@ -6,7 +6,13 @@ import {
     CheckSquare,
     Square,
     ArrowRight,
-    Loader2
+    Loader2,
+    RefreshCw,
+    Shield,
+    Trophy,
+    Phone,
+    MapPin,
+    Trash2
 } from "lucide-react";
 import { ROUTES } from "@/constants";
 import logo from "@/assets/logo.jpeg";
@@ -25,28 +31,62 @@ export default function SoloPlayerHandling() {
     const [captainContact, setCaptainContact] = useState("");
     const [lookingPositions, setLookingPositions] = useState("");
     const [loading, setLoading] = useState(true);
+    const [fetchingTeams, setFetchingTeams] = useState(true);
+    const [teams, setTeams] = useState<any[]>([]);
     const [error, setError] = useState<string | null>(null);
 
     /* =======================
        Effects
     ======================= */
     useEffect(() => {
-        const fetchPlayers = async () => {
-            try {
-                setLoading(true);
-                const data = await playerAPI.getAdminSoloPlayers();
-                setPlayers(data || []);
-                setError(null);
-            } catch (err) {
-                console.error("Failed to fetch solo players:", err);
-                setError("Failed to load solo player pool. Please try again.");
-            } finally {
-                setLoading(false);
-            }
-        };
-
         fetchPlayers();
+        fetchTeams();
     }, []);
+
+    const fetchPlayers = async () => {
+        try {
+            setLoading(true);
+            const data = await playerAPI.getAdminSoloPlayers();
+            setPlayers(data || []);
+            setError(null);
+        } catch (err) {
+            console.error("Failed to fetch solo players:", err);
+            setError("Failed to load solo player pool. Please try again.");
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const fetchTeams = async () => {
+        try {
+            setFetchingTeams(true);
+            const data = await teamAPI.getTeams();
+            setTeams(data || []);
+        } catch (err) {
+            console.error("Failed to fetch teams:", err);
+        } finally {
+            setFetchingTeams(false);
+        }
+    };
+
+    const handleDeleteTeam = async (id: number, name: string) => {
+        if (!window.confirm(`Are you sure you want to delete team "${name}"? This will return all players to the solo pool.`)) {
+            return;
+        }
+
+        try {
+            setFetchingTeams(true);
+            await teamAPI.deleteTeam(id);
+            alert(`Team "${name}" deleted successfully.`);
+            fetchTeams();
+            fetchPlayers(); // Refresh solo pool
+        } catch (err) {
+            console.error("Failed to delete team:", err);
+            alert("Failed to delete team. Please try again.");
+        } finally {
+            setFetchingTeams(false);
+        }
+    };
 
     // Selection Logic
     const toggleSelection = (id: number) => {
@@ -67,7 +107,8 @@ export default function SoloPlayerHandling() {
                 current_member: selectedIds.length,
                 captain_name: captainName,
                 captain_contact: captainContact,
-                looking_positions: lookingPositions
+                looking_positions: lookingPositions,
+                player_ids: selectedIds
             });
             
             alert(`Team "${teamName}" created successfully with ${selectedIds.length} players!`);
@@ -77,6 +118,8 @@ export default function SoloPlayerHandling() {
             setCaptainName("");
             setCaptainContact("");
             setLookingPositions("");
+            fetchPlayers(); // Refresh player pool
+            fetchTeams(); // Refresh ledger
         } catch (err) {
             console.error("Failed to create team:", err);
             alert("Failed to create team. Please try again.");
@@ -293,6 +336,120 @@ export default function SoloPlayerHandling() {
                         </div>
                     </div>
 
+                </div>
+
+                {/* Teams Ledger Section */}
+                <div className="mt-12 bg-white rounded-xl border shadow-sm overflow-hidden">
+                    <div className="p-6 border-b flex items-center justify-between bg-gray-50">
+                        <div>
+                            <h3 className="text-xl font-bold text-gray-900">Teams Ledger</h3>
+                            <p className="text-sm text-gray-500">Overview of all created teams and their captains.</p>
+                        </div>
+                        <button 
+                            onClick={fetchTeams}
+                            disabled={fetchingTeams}
+                            className="p-2 hover:bg-gray-200 rounded-lg transition-colors text-gray-600 flex items-center gap-2 text-sm font-medium"
+                        >
+                            <RefreshCw className={`w-4 h-4 ${fetchingTeams ? 'animate-spin' : ''}`} />
+                            Refresh
+                        </button>
+                    </div>
+
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-left border-collapse">
+                            <thead>
+                                <tr className="bg-gray-50 text-xs uppercase font-bold text-gray-500 border-b">
+                                    <th className="px-6 py-4">Team Name</th>
+                                    <th className="px-6 py-4">Skill Level</th>
+                                    <th className="px-6 py-4">Members</th>
+                                    <th className="px-6 py-4">Captain</th>
+                                    <th className="px-6 py-4">Current Looking</th>
+                                    <th className="px-6 py-4 text-right">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-gray-100">
+                                {fetchingTeams ? (
+                                    <tr>
+                                        <td colSpan={5} className="px-6 py-20 text-center text-gray-500">
+                                            <Loader2 className="w-8 h-8 animate-spin text-purple-600 mx-auto mb-2" />
+                                            <p>Updating ledger...</p>
+                                        </td>
+                                    </tr>
+                                ) : teams.length > 0 ? (
+                                    teams.map((team) => (
+                                        <tr key={team.team_id} className="hover:bg-gray-50 transition-colors">
+                                            <td className="px-6 py-4">
+                                                <div className="flex items-center gap-3">
+                                                    <div className="w-8 h-8 bg-purple-100 rounded flex items-center justify-center">
+                                                        <Shield className="w-4 h-4 text-purple-600" />
+                                                    </div>
+                                                    <div>
+                                                        <p className="font-bold text-gray-900">{team.team_name}</p>
+                                                        <p className="text-[10px] text-gray-400 flex items-center gap-1">
+                                                            <MapPin className="w-2.5 h-2.5" /> {team.turf_name}
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                            </td>
+                                            <td className="px-6 py-4 text-sm">
+                                                <span className={`
+                                                    px-2 py-0.5 rounded-full text-[10px] font-bold uppercase border
+                                                    ${team.team_skill_level === 'Professional' ? 'bg-indigo-50 text-indigo-700 border-indigo-200' :
+                                                      team.team_skill_level === 'Advanced' ? 'bg-purple-50 text-purple-700 border-purple-200' :
+                                                      team.team_skill_level === 'Intermediate' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 
+                                                      'bg-blue-50 text-blue-700 border-blue-200'}
+                                                `}>
+                                                    {team.team_skill_level}
+                                                </span>
+                                            </td>
+                                            <td className="px-6 py-4 text-sm">
+                                                <div className="flex items-center gap-2">
+                                                    <div className="flex-1 h-1.5 w-16 bg-gray-100 rounded-full overflow-hidden">
+                                                        <div 
+                                                            className="h-full bg-purple-600 rounded-full" 
+                                                            style={{ width: `${(team.current_member / team.total_member) * 100}%` }}
+                                                        />
+                                                    </div>
+                                                    <span className="font-bold text-gray-700">{team.current_member}/{team.total_member}</span>
+                                                </div>
+                                            </td>
+                                            <td className="px-6 py-4">
+                                                <p className="text-sm font-bold text-gray-900">{team.captain_name}</p>
+                                                <p className="text-xs text-gray-500 flex items-center gap-1">
+                                                    <Phone className="w-3 h-3" /> {team.captain_contact}
+                                                </p>
+                                            </td>
+                                            <td className="px-6 py-4">
+                                                <div className="flex flex-wrap gap-1">
+                                                    {team.looking_positions ? team.looking_positions.split(',').map((pos: string) => (
+                                                        <span key={pos} className="text-[10px] bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded font-medium border border-gray-200">
+                                                            {pos.trim()}
+                                                        </span>
+                                                    )) : <span className="text-xs text-gray-400 italic">None</span>}
+                                                </div>
+                                            </td>
+                                            <td className="px-6 py-4 text-right">
+                                                <button
+                                                    onClick={() => handleDeleteTeam(team.team_id, team.team_name)}
+                                                    className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors border border-transparent hover:border-red-100"
+                                                    title="Delete Team"
+                                                >
+                                                    <Trash2 className="w-4 h-4" />
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    ))
+                                ) : (
+                                    <tr>
+                                        <td colSpan={5} className="px-6 py-20 text-center text-gray-500">
+                                            <Trophy className="w-12 h-12 mx-auto mb-3 opacity-10" />
+                                            <p>No teams created in the system yet.</p>
+                                        </td>
+                                    </tr>
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             </main>
         </div>

@@ -52,6 +52,9 @@ func main() {
 	playerHandler := handlers.NewPlayerHandler(playerService)
 	teamHandler := handlers.NewTeamHandler(teamService)
 
+	// Start background workers
+	teamService.StartCleanupWorker()
+
 	// Setup routes
 	router := routes.SetupRouter(authHandler, availabilityHandler, bookingHandler, eventHandler, playerHandler, teamHandler, cfg)
 

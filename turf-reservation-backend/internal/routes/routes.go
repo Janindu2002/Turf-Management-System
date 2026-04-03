@@ -113,7 +113,10 @@ func SetupRouter(authHandler *handlers.AuthHandler, availabilityHandler *handler
 			admin.GET("/players/solo", playerHandler.GetAdminSoloPlayers)
 
 			// Team Management
-			admin.POST("/teams", teamHandler.CreateTeam)
+			adminTeams := admin.Group("/teams")
+			adminTeams.GET("", teamHandler.GetTeams)
+			adminTeams.POST("", teamHandler.CreateTeam)
+			adminTeams.DELETE("/:id", teamHandler.DeleteTeam)
 		}
 
 		// Coach routes
