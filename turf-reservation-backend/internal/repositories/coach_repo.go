@@ -122,3 +122,65 @@ func (r *CoachRepository) GetAllCoaches() ([]CoachPublicProfile, error) {
 	}
 	return coaches, nil
 }
+
+// CoachAdminProfile is used by admins to see full coach details
+type CoachAdminProfile struct {
+	UserID         int     `json:"user_id"`
+	Name           string  `json:"name"`
+	Email          string  `json:"email"`
+	Phone          string  `json:"phone"`
+	Specialization string  `json:"specialization"`
+	Availability   string  `json:"availability"`
+	HourlyRate     float64 `json:"hourly_rate"`
+	Certificate    string  `json:"certificate"`
+	LastLogin      string  `json:"last_login"`
+}
+
+// GetAllCoachesAdmin returns all coaches with full details for admin view
+func (r *CoachRepository) GetAllCoachesAdmin() ([]CoachAdminProfile, error) {
+	query := `
+		SELECT
+			u.user_id,
+			u.name,
+			u.email,
+			COALESCE(u.phone, ''),
+			COALESCE(c.specialization, ''),
+			COALESCE(c.availability, ''),
+			COALESCE(c.hourly_rate, 0),
+			COALESCE(c.certificate, ''),
+			COALESCE(
+				(SELECT TO_CHAR(sl.created_at, 'YYYY-MM-DD HH12:MI AM')
+				 FROM security_logs sl
+				 WHERE sl.user_id = u.user_id
+				   AND sl.event_type = 'login'
+				   AND sl.status = 'success'
+				 ORDER BY sl.created_at DESC
+				 LIMIT 1),
+				'Never'
+			)
+		FROM users u
+		JOIN coaches c ON u.user_id = c.user_id
+		WHERE u.role = 'coach'
+		ORDER BY u.name ASC
+	`
+	rows, err := r.db.Query(query)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get admin coaches: %w", err)
+	}
+	defer rows.Close()
+
+	var coaches []CoachAdminProfile
+	for rows.Next() {
+		var p CoachAdminProfile
+		err := rows.Scan(
+			&p.UserID, &p.Name, &p.Email, &p.Phone,
+			&p.Specialization, &p.Availability, &p.HourlyRate,
+			&p.Certificate, &p.LastLogin,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan admin coach: %w", err)
+		}
+		coaches = append(coaches, p)
+	}
+	return coaches, nil
+}

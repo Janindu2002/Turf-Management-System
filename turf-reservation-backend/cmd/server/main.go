@@ -52,7 +52,7 @@ func main() {
 	eventHandler := handlers.NewEventHandler(eventService)
 	playerHandler := handlers.NewPlayerHandler(playerService)
 	teamHandler := handlers.NewTeamHandler(teamService)
-	coachHandler := handlers.NewCoachHandler(coachRepo)
+	coachHandler := handlers.NewCoachHandler(coachRepo, userRepo)
 
 	// Start background workers
 	teamService.StartCleanupWorker()

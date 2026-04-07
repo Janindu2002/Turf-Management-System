@@ -1,19 +1,20 @@
 package handlers
 
 import (
+	"fmt"
 	"net/http"
 	"turf-reservation-backend/internal/repositories"
 
 	"github.com/gin-gonic/gin"
 )
 
-
 type CoachHandler struct {
 	coachRepo *repositories.CoachRepository
+	userRepo  *repositories.UserRepository
 }
 
-func NewCoachHandler(coachRepo *repositories.CoachRepository) *CoachHandler {
-	return &CoachHandler{coachRepo: coachRepo}
+func NewCoachHandler(coachRepo *repositories.CoachRepository, userRepo *repositories.UserRepository) *CoachHandler {
+	return &CoachHandler{coachRepo: coachRepo, userRepo: userRepo}
 }
 
 // GetMyProfile returns the current coach's profile
@@ -82,5 +83,45 @@ func (h *CoachHandler) GetAllCoaches(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"data":    coaches,
+	})
+}
+
+// GetAllCoachesAdmin returns full coach details for admin management
+func (h *CoachHandler) GetAllCoachesAdmin(c *gin.Context) {
+	coaches, err := h.coachRepo.GetAllCoachesAdmin()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": err.Error()})
+		return
+	}
+	if coaches == nil {
+		coaches = []repositories.CoachAdminProfile{}
+	}
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"data":    coaches,
+	})
+}
+
+// DeleteCoach removes a coach's user account from the system entirely
+func (h *CoachHandler) DeleteCoach(c *gin.Context) {
+	idStr := c.Param("id")
+	var userID int
+	if _, err := fmt.Sscanf(idStr, "%d", &userID); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Invalid coach ID"})
+		return
+	}
+
+	if err := h.userRepo.DeleteUser(userID); err != nil {
+		if err == repositories.ErrUserNotFound {
+			c.JSON(http.StatusNotFound, gin.H{"success": false, "error": "Coach not found"})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "Coach deleted successfully",
 	})
 }

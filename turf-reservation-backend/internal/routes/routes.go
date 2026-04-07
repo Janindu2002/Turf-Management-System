@@ -128,6 +128,10 @@ func SetupRouter(authHandler *handlers.AuthHandler, availabilityHandler *handler
 			adminTeams.GET("", teamHandler.GetTeams)
 			adminTeams.POST("", teamHandler.CreateTeam)
 			adminTeams.DELETE("/:id", teamHandler.DeleteTeam)
+
+			// Coach Management (Admin)
+			admin.GET("/coaches", coachHandler.GetAllCoachesAdmin)
+			admin.DELETE("/coaches/:id", coachHandler.DeleteCoach)
 		}
 
 		// Coach routes

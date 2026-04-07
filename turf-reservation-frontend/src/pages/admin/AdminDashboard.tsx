@@ -199,7 +199,7 @@ export default function AdminDashboard() {
                             </div>
                             <button
                                 onClick={() => navigate(ROUTES.ADMIN_COACHES_MANAGE)}
-                                className="mt-4 w-full bg-purple-600 text-white font-bold py-2 rounded-lg hover:bg-purple-700 flex items-center justify-center gap-2 transition-all"
+                                className="mt-4 w-full bg-white text-purple-600 border border-purple-200 font-bold py-2 rounded-lg hover:bg-purple-50 flex items-center justify-center gap-2 transition-all"
                             >
                                 <UserCog className="w-4 h-4" /> Manage Coaches
                             </button>

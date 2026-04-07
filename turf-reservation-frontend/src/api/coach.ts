@@ -55,3 +55,36 @@ export async function getAllCoaches(): Promise<CoachPublicProfile[]> {
     }
     return response.data.data ?? [];
 }
+
+export interface CoachAdminProfile {
+    user_id: number;
+    name: string;
+    email: string;
+    phone: string;
+    specialization: string;
+    availability: string;
+    hourly_rate: number;
+    certificate: string;
+    last_login: string;
+}
+
+/**
+ * Get all coaches with full details for admin management
+ */
+export async function getAdminCoaches(): Promise<CoachAdminProfile[]> {
+    const response = await client.get<ApiResponse<CoachAdminProfile[]>>('/api/admin/coaches');
+    if (!response.data.success) {
+        throw new Error(response.data.error || 'Failed to fetch admin coaches');
+    }
+    return response.data.data ?? [];
+}
+
+/**
+ * Delete a coach's user account from the system (Admin only)
+ */
+export async function deleteCoach(userId: number): Promise<void> {
+    const response = await client.delete<ApiResponse<void>>(`/api/admin/coaches/${userId}`);
+    if (!response.data.success) {
+        throw new Error(response.data.error || 'Failed to delete coach');
+    }
+}
