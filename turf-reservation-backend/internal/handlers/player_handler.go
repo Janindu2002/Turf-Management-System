@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"fmt"
 	"log"
 	"net/http"
 	"turf-reservation-backend/internal/models"
@@ -8,6 +9,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 )
+
 
 type PlayerHandler struct {
 	playerService *services.PlayerService
@@ -104,3 +106,37 @@ func (h *PlayerHandler) ToggleAvailability(c *gin.Context) {
 		"message": message,
 	})
 }
+
+func (h *PlayerHandler) GetAllPlayers(c *gin.Context) {
+	players, err := h.playerService.GetAllPlayers()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"data":    players,
+	})
+}
+
+func (h *PlayerHandler) DeletePlayer(c *gin.Context) {
+	idStr := c.Param("id")
+	// Convert string ID to int
+	var userID int
+	if _, err := fmt.Sscanf(idStr, "%d", &userID); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid player ID"})
+		return
+	}
+
+	if err := h.playerService.DeletePlayer(userID); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "Player deleted successfully",
+	})
+}
+

@@ -12,6 +12,7 @@ export interface PlayerProfile {
     is_solo_player: boolean;
     is_available: boolean;
     has_team: boolean;
+    last_login?: string;
 }
 
 export const playerAPI = {
@@ -28,5 +29,13 @@ export const playerAPI = {
     getAdminSoloPlayers: async (): Promise<PlayerProfile[]> => {
         const response = await client.get<{ success: boolean; data: PlayerProfile[] }>("/api/admin/players/solo");
         return response.data.data;
+    },
+    getAllPlayers: async (): Promise<PlayerProfile[]> => {
+        const response = await client.get<{ success: boolean; data: PlayerProfile[] }>("/api/admin/players");
+        return response.data.data;
+    },
+    deletePlayer: async (userId: number): Promise<void> => {
+        await client.delete(`/api/admin/players/${userId}`);
     }
 };
+

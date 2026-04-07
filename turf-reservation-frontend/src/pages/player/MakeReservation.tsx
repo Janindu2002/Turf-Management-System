@@ -14,7 +14,7 @@ interface TimeSlot {
     time_slot_id: number;
     start_time: string;
     end_time: string;
-    status: "available" | "booked";
+    status: "available" | "booked" | "blocked";
     blocked_reason?: string;
 }
 
@@ -223,16 +223,16 @@ export default function MakeReservation() {
                                     <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
                                         {slots?.map((slot) => {
                                             const isSelected = selectedSlotId === slot.time_slot_id;
-                                            const isBooked = slot.status === "booked";
+                                            const isUnavailable = slot.status === "booked" || slot.status === "blocked";
 
                                             return (
                                                 <button
                                                     key={slot.time_slot_id}
-                                                    disabled={isBooked}
+                                                    disabled={isUnavailable}
                                                     onClick={() => setSelectedSlotId(slot.time_slot_id)}
                                                     className={`
                                                         py-3 px-2 rounded-lg text-sm font-semibold border transition-all flex flex-col items-center justify-center gap-1 min-h-[72px] text-center
-                                                        ${isBooked
+                                                        ${isUnavailable
                                                             ? "bg-gray-100 text-gray-400 border-gray-100 cursor-not-allowed"
                                                             : isSelected
                                                                 ? "bg-emerald-600 text-white border-emerald-600 shadow-md transform scale-105 ring-2 ring-emerald-200"
@@ -241,10 +241,10 @@ export default function MakeReservation() {
                                                     `}
                                                 >
                                                     <Clock className={`w-4 h-4 ${isSelected ? "text-emerald-100" : "text-gray-400"}`} />
-                                                    <span className={isBooked ? "line-through" : ""}>{formatTime(slot.start_time)}</span>
-                                                    {isBooked && (
+                                                    <span className={isUnavailable ? "line-through" : ""}>{formatTime(slot.start_time)}</span>
+                                                    {isUnavailable && (
                                                         <span className="text-[9px] uppercase font-bold text-emerald-600 leading-tight px-1">
-                                                            {slot.blocked_reason || "Reserved"}
+                                                            {slot.status === 'blocked' ? (slot.blocked_reason || "Maintenance") : (slot.blocked_reason || "Reserved")}
                                                         </span>
                                                     )}
                                                 </button>

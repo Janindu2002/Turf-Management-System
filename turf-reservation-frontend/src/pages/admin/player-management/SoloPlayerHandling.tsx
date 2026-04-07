@@ -313,8 +313,13 @@ export default function SoloPlayerHandling() {
                                         </button>
                                         <button
                                             type="submit"
-                                            className="flex-1 py-2 bg-purple-600 text-white rounded-lg font-bold hover:bg-purple-700 shadow-sm"
+                                            disabled={loading}
+                                            className={`
+                                                flex-1 py-2 bg-purple-600 text-white rounded-lg font-bold hover:bg-purple-700 shadow-sm flex items-center justify-center gap-2
+                                                ${loading ? "opacity-70 cursor-not-allowed" : ""}
+                                            `}
                                         >
+                                            {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
                                             Confirm
                                         </button>
                                     </div>

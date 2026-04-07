@@ -85,3 +85,12 @@ func (s *PlayerService) GetSoloPlayers() ([]models.PlayerProfile, error) {
 func (s *PlayerService) ToggleAvailability(userID int, isAvailable bool) error {
 	return s.playerRepo.UpdateAvailability(userID, isAvailable)
 }
+
+func (s *PlayerService) GetAllPlayers() ([]models.PlayerProfile, error) {
+	return s.playerRepo.GetAllPlayers()
+}
+
+func (s *PlayerService) DeletePlayer(userID int) error {
+	return s.userRepo.DeleteUser(userID)
+}
+

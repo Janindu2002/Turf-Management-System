@@ -80,7 +80,7 @@ func (r *PlayerRepository) GetSoloPlayers() ([]models.PlayerProfile, error) {
 		       p.team_id, p.skill_level, p.position, COALESCE(p.available_days, ''), COALESCE(p.description, ''), p.is_solo_player, p.is_available, p.has_team
 		FROM users u
 		JOIN players p ON u.user_id = p.user_id
-		WHERE p.is_solo_player = true AND p.is_available = true
+		WHERE p.is_solo_player = true AND p.is_available = true AND p.has_team = false
 	`
 	rows, err := r.db.Query(query)
 	if err != nil {
@@ -116,3 +116,39 @@ func (r *PlayerRepository) UpdateAvailability(userID int, isAvailable bool) erro
 	}
 	return nil
 }
+
+func (r *PlayerRepository) GetAllPlayers() ([]models.PlayerProfile, error) {
+	query := `
+		SELECT u.user_id, u.name, u.email, COALESCE(u.phone, ''), 
+		       p.team_id, COALESCE(p.skill_level, ''), COALESCE(p.position, ''), COALESCE(p.available_days, ''), COALESCE(p.description, ''), 
+		       COALESCE(p.is_solo_player, false), COALESCE(p.is_available, false), COALESCE(p.has_team, false),
+		       COALESCE((SELECT TO_CHAR(MAX(created_at), 'YYYY-MM-DD HH:MI AM') 
+		        FROM security_logs 
+		        WHERE user_id = u.user_id AND event_type = 'login' AND status = 'success'), 'Never') as last_login
+		FROM users u
+		LEFT JOIN players p ON u.user_id = p.user_id
+		WHERE u.role = 'player'
+		ORDER BY u.name ASC
+	`
+	rows, err := r.db.Query(query)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get all players: %w", err)
+	}
+	defer rows.Close()
+
+	var players []models.PlayerProfile
+	for rows.Next() {
+		var p models.PlayerProfile
+		err := rows.Scan(
+			&p.UserID, &p.Name, &p.Email, &p.Phone,
+			&p.TeamID, &p.SkillLevel, &p.Position, &p.AvailableDays, &p.Description, 
+			&p.IsSoloPlayer, &p.IsAvailable, &p.HasTeam, &p.LastLogin,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan player profile: %w", err)
+		}
+		players = append(players, p)
+	}
+	return players, nil
+}
+

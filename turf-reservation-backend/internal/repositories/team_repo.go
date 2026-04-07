@@ -3,6 +3,7 @@ package repositories
 import (
 	"database/sql"
 	"fmt"
+	"strings"
 	"turf-reservation-backend/internal/models"
 )
 
@@ -43,6 +44,9 @@ func (r *TeamRepository) CreateTeam(team *models.Team) error {
 	).Scan(&team.TeamID)
 
 	if err != nil {
+		if strings.Contains(err.Error(), "unique constraint") && strings.Contains(err.Error(), "teams_team_name_key") {
+			return fmt.Errorf("a team with the name '%s' already exists", team.TeamName)
+		}
 		return fmt.Errorf("failed to insert team: %w", err)
 	}
 
@@ -50,7 +54,7 @@ func (r *TeamRepository) CreateTeam(team *models.Team) error {
 	if len(team.PlayerIDs) > 0 {
 		updatePlayerQuery := `
 			UPDATE players 
-			SET team_id = $1, has_team = true, is_solo_player = false 
+			SET team_id = $1, has_team = true 
 			WHERE user_id = $2`
 
 		for _, playerID := range team.PlayerIDs {
@@ -117,7 +121,7 @@ func (r *TeamRepository) CleanupExpiredTeams(days int) (int, error) {
 	// 1. Reset players whose teams are older than 'days'
 	resetPlayersQuery := `
 		UPDATE players 
-		SET team_id = NULL, has_team = false, is_solo_player = true 
+		SET team_id = NULL, has_team = false 
 		WHERE team_id IN (
 			SELECT team_id FROM teams 
 			WHERE created_at < NOW() - ($1 || ' days')::interval
@@ -158,7 +162,7 @@ func (r *TeamRepository) DeleteTeam(teamID int) error {
 	// 1. Reset players assigned to this team
 	resetPlayersQuery := `
 		UPDATE players 
-		SET team_id = NULL, has_team = false, is_solo_player = true 
+		SET team_id = NULL, has_team = false 
 		WHERE team_id = $1`
 
 	_, err = tx.Exec(resetPlayersQuery, teamID)

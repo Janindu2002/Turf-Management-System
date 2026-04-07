@@ -30,4 +30,5 @@ type PlayerProfile struct {
 	IsSoloPlayer  bool   `json:"is_solo_player"`
 	IsAvailable   bool   `json:"is_available"`
 	HasTeam       bool   `json:"has_team"`
+	LastLogin     string `json:"last_login,omitempty"`
 }

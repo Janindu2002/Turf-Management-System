@@ -113,6 +113,10 @@ func SetupRouter(authHandler *handlers.AuthHandler, availabilityHandler *handler
 			admin.POST("/slots/block", availabilityHandler.BlockSlots)
 			admin.POST("/slots/:id/unblock", availabilityHandler.UnblockSlot)
 
+			// Player Management (Comprehensive)
+			admin.GET("/players", playerHandler.GetAllPlayers)
+			admin.DELETE("/players/:id", playerHandler.DeletePlayer)
+
 			// Solo Players Management
 			admin.GET("/players/solo", playerHandler.GetAdminSoloPlayers)
 

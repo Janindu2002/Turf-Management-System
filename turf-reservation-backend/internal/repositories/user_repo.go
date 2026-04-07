@@ -163,3 +163,24 @@ func (r *UserRepository) UpdatePassword(userID int, hashedPassword string) error
 
 	return nil
 }
+
+// DeleteUser deletes a user and all associated data via ON DELETE CASCADE
+func (r *UserRepository) DeleteUser(userID int) error {
+	query := `DELETE FROM users WHERE user_id = $1`
+	result, err := r.db.Exec(query, userID)
+	if err != nil {
+		return fmt.Errorf("failed to delete user: %w", err)
+	}
+
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("failed to get rows affected: %w", err)
+	}
+
+	if rows == 0 {
+		return ErrUserNotFound
+	}
+
+	return nil
+}
+
