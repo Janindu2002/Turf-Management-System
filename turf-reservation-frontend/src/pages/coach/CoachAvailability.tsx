@@ -1,37 +1,91 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, Save, Loader2, Clock } from "lucide-react";
+import { ArrowLeft, Save, Loader2, Clock, Briefcase, CheckCircle } from "lucide-react";
 import { ROUTES } from "@/constants";
 import logo from "@/assets/logo.jpeg";
+import { getCoachProfile, updateCoachProfile } from "@/api/coach";
 
 const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+
+/** Converts "Mon,Wed,Fri" ↔ string[] */
+const parseDays = (str: string): string[] =>
+    str ? str.split(",").map((d) => d.trim()).filter(Boolean) : [];
+const serializeDays = (days: string[]): string => days.join(",");
+
+/** Converts "16:00-20:00" ↔ {start, end} */
+const parseHours = (str: string): { start: string; end: string } => {
+    const [start = "09:00", end = "17:00"] = str ? str.split("-") : [];
+    return { start, end };
+};
+const serializeHours = (start: string, end: string): string => `${start}-${end}`;
 
 export default function CoachAvailability() {
     const navigate = useNavigate();
     const [loading, setLoading] = useState(false);
+    const [fetching, setFetching] = useState(true);
+    const [saved, setSaved] = useState(false);
+    const [error, setError] = useState<string | null>(null);
 
-    // State
+    // Form state
     const [selectedDays, setSelectedDays] = useState<string[]>(["Mon", "Wed", "Fri"]);
     const [startTime, setStartTime] = useState("16:00");
     const [endTime, setEndTime] = useState("20:00");
     const [rate, setRate] = useState("1500");
+    const [specialization, setSpecialization] = useState("");
+
+    // Load existing profile on mount
+    useEffect(() => {
+        getCoachProfile()
+            .then((profile) => {
+                if (profile.availability) {
+                    const parts = profile.availability.split("|");
+                    const days = parseDays(parts[0] ?? "");
+                    const hours = parseHours(parts[1] ?? "");
+                    setSelectedDays(days.length ? days : ["Mon", "Wed", "Fri"]);
+                    setStartTime(hours.start);
+                    setEndTime(hours.end);
+                }
+                if (profile.specialization) setSpecialization(profile.specialization);
+                if (profile.hourly_rate) setRate(String(profile.hourly_rate));
+            })
+            .catch(() => {}) // first-time coach may have no existing profile
+            .finally(() => setFetching(false));
+    }, []);
 
     const toggleDay = (day: string) => {
-        if (selectedDays.includes(day)) {
-            setSelectedDays(prev => prev.filter(d => d !== day));
-        } else {
-            setSelectedDays(prev => [...prev, day]);
+        setSelectedDays((prev) =>
+            prev.includes(day) ? prev.filter((d) => d !== day) : [...prev, day]
+        );
+    };
+
+    const handleSave = async () => {
+        setError(null);
+        setSaved(false);
+        setLoading(true);
+        try {
+            // Encode as "Mon,Wed,Fri|16:00-20:00" — simple compound string
+            const availability = `${serializeDays(selectedDays)}|${serializeHours(startTime, endTime)}`;
+            await updateCoachProfile({
+                specialization,
+                availability,
+                hourly_rate: parseFloat(rate) || 0,
+            });
+            setSaved(true);
+            setTimeout(() => navigate(ROUTES.COACH_DASHBOARD), 1200);
+        } catch (err: any) {
+            setError(err.message || "Failed to save. Please try again.");
+        } finally {
+            setLoading(false);
         }
     };
 
-    const handleSave = () => {
-        setLoading(true);
-        // Simulate API call
-        setTimeout(() => {
-            setLoading(false);
-            navigate(ROUTES.COACH_DASHBOARD);
-        }, 1500);
-    };
+    if (fetching) {
+        return (
+            <div className="min-h-screen flex items-center justify-center bg-gray-50">
+                <Loader2 className="animate-spin w-8 h-8 text-blue-600" />
+            </div>
+        );
+    }
 
     return (
         <div className="min-h-screen bg-gray-50">
@@ -56,13 +110,24 @@ export default function CoachAvailability() {
                     <p className="text-gray-600">Configure when you are available for booking.</p>
                 </div>
 
+                {error && (
+                    <div className="mb-4 bg-red-50 border border-red-200 text-red-600 p-3 rounded-xl text-sm">
+                        {error}
+                    </div>
+                )}
+                {saved && (
+                    <div className="mb-4 bg-green-50 border border-green-200 text-green-700 p-3 rounded-xl text-sm flex items-center gap-2">
+                        <CheckCircle className="w-4 h-4" /> Availability saved! Redirecting…
+                    </div>
+                )}
+
                 <div className="space-y-6">
 
                     {/* Working Days */}
                     <div className="bg-white p-6 rounded-xl shadow-sm border">
                         <h3 className="font-bold text-gray-800 mb-4">Working Days</h3>
                         <div className="flex flex-wrap gap-2">
-                            {DAYS.map(day => (
+                            {DAYS.map((day) => (
                                 <button
                                     key={day}
                                     onClick={() => toggleDay(day)}
@@ -107,6 +172,21 @@ export default function CoachAvailability() {
                         </div>
                     </div>
 
+                    {/* Specialization */}
+                    <div className="bg-white p-6 rounded-xl shadow-sm border">
+                        <h3 className="font-bold text-gray-800 mb-4 flex items-center gap-2">
+                            <Briefcase className="w-4 h-4 text-blue-600" /> Specialization
+                        </h3>
+                        <input
+                            type="text"
+                            value={specialization}
+                            onChange={(e) => setSpecialization(e.target.value)}
+                            placeholder="e.g. Hockey Goalkeeper, Field Hockey, Fitness Training..."
+                            className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-gray-50"
+                        />
+                        <p className="text-xs text-gray-400 mt-2">Describe your coaching area or expertise shown to players.</p>
+                    </div>
+
                     {/* Rate */}
                     <div className="bg-white p-6 rounded-xl shadow-sm border">
                         <h3 className="font-bold text-gray-800 mb-4">Hourly Rate</h3>
@@ -124,8 +204,8 @@ export default function CoachAvailability() {
 
                     <button
                         onClick={handleSave}
-                        disabled={loading}
-                        className="w-full bg-blue-600 text-white py-4 rounded-xl font-bold shadow-lg hover:bg-blue-700 transition-all flex items-center justify-center gap-2"
+                        disabled={loading || saved}
+                        className="w-full bg-blue-600 text-white py-4 rounded-xl font-bold shadow-lg hover:bg-blue-700 disabled:opacity-60 transition-all flex items-center justify-center gap-2"
                     >
                         {loading ? <Loader2 className="animate-spin" /> : <><Save className="w-5 h-5" /> Save Availability</>}
                     </button>

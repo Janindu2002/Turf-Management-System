@@ -4,8 +4,15 @@ import type { LoginCredentials, RegisterData, AuthResponse, User, ApiResponse } 
 /**
  * Register a new user
  */
-export async function register(data: RegisterData): Promise<void> {
-    const response = await client.post<ApiResponse<{ user: User }>>('/api/auth/register', data);
+export async function register(data: RegisterData | FormData): Promise<void> {
+    const isFormData = data instanceof FormData;
+    const response = await client.post<ApiResponse<{ user: User }>>(
+        '/api/auth/register',
+        data,
+        isFormData
+            ? { headers: { 'Content-Type': undefined } } // Let axios set multipart boundary automatically
+            : undefined
+    );
     if (!response.data.success) {
         throw new Error(response.data.error || 'Registration failed');
     }

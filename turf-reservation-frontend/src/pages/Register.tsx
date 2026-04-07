@@ -65,6 +65,11 @@ export default function Register() {
         if (phone && !/^\d{10}$/.test(phone)) {
             e.phone = "Phone number must be exactly 10 digits";
         }
+
+        if (role === "coach" && !coachCertificate) {
+            e.form = "Coaching certificate is required";
+        }
+
         setErrors(e);
         return Object.keys(e).length === 0;
     };
@@ -79,23 +84,24 @@ export default function Register() {
         setErrors({});
 
         try {
-            await register({
-                name,
-                email,
-                phone,
-                password,
-                role,
-                has_team: role === "player" ? hasTeam : undefined,
-            });
+            // Prepare registration data
+            const formData = new FormData();
+            formData.append("name", name);
+            formData.append("email", email);
+            formData.append("password", password);
+            formData.append("phone", phone);
+            formData.append("role", role);
+            
+            if (role === "player") {
+                formData.append("has_team", hasTeam.toString());
+            } else if (role === "coach" && coachCertificate) {
+                formData.append("certificate", coachCertificate);
+            }
 
-            // AuthContext handles login after registration
-            // Redirect based on role
-            const roleRoutes: Record<Role, string> = {
-                player: ROUTES.PLAYER_DASHBOARD,
-                coach: ROUTES.COACH_DASHBOARD,
-            };
+            // Call register with FormData and credentials for auto-login
+            await register(formData, { email, password });
 
-            navigate(roleRoutes[role], { replace: true });
+            // Redirection is handled by useEffect when isAuthenticated changes
         } catch (err: any) {
             setErrors({
                 form:

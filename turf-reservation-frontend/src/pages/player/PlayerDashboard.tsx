@@ -22,6 +22,7 @@ import { bookingAPI } from "@/api/booking";
 import type { BookingResponse } from "@/api/booking";
 import { eventAPI, type EventResponse } from "@/api/event";
 import { playerAPI, type PlayerProfile } from "@/api/player";
+import { getAllCoaches, type CoachPublicProfile } from "@/api/coach";
 import Section from "@/components/ui/Section";
 import { ROUTES } from "@/constants";
 
@@ -40,6 +41,8 @@ export default function PlayerDashboard() {
     const [eventsError, setEventsError] = useState<string | null>(null);
     const [playerProfile, setPlayerProfile] = useState<PlayerProfile | null>(null);
     const [togglingAvailability, setTogglingAvailability] = useState(false);
+    const [coaches, setCoaches] = useState<CoachPublicProfile[]>([]);
+    const [coachesLoading, setCoachesLoading] = useState(true);
 
     const logout = async () => {
         await handleLogout();
@@ -84,10 +87,24 @@ export default function PlayerDashboard() {
         }
     };
 
+    // Fetch Coaches
+    const fetchCoaches = async () => {
+        try {
+            setCoachesLoading(true);
+            const data = await getAllCoaches();
+            setCoaches(data || []);
+        } catch (err) {
+            console.error("Failed to fetch coaches:", err);
+        } finally {
+            setCoachesLoading(false);
+        }
+    };
+
     useEffect(() => {
         fetchBookings();
         fetchEvents();
         fetchPlayerProfile();
+        fetchCoaches();
     }, []);
 
     const toggleAvailability = async () => {
@@ -293,23 +310,70 @@ export default function PlayerDashboard() {
                 </Section>
 
                 {/* Coach Booking Section */}
-                <Section title="Coach Bookings">
+                <Section title="Available Coaches">
                     <div className="bg-white rounded-xl shadow-sm border overflow-hidden">
-                        <div className="p-8 flex flex-col items-center justify-center text-center gap-3">
-                            <div className="bg-blue-50 p-4 rounded-full">
-                                <User className="w-8 h-8 text-blue-400" />
+                        {coachesLoading ? (
+                            <div className="p-12 flex flex-col items-center justify-center text-gray-500 gap-3">
+                                <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
+                                <p>Loading coaches...</p>
                             </div>
-                            <p className="font-semibold text-gray-600">No coach sessions booked yet.</p>
-                            <p className="text-sm text-gray-400 max-w-sm">
-                                Coach sessions you book will appear here. Browse available coaches to get started.
-                            </p>
-                            <button
-                                className="mt-2 px-5 py-2 bg-blue-600 text-white rounded-lg font-semibold text-sm hover:bg-blue-700 transition-colors"
-                                onClick={() => alert("Coach booking coming soon!")}
-                            >
-                                Browse Coaches
-                            </button>
-                        </div>
+                        ) : coaches.length === 0 ? (
+                            <div className="p-8 flex flex-col items-center justify-center text-center gap-3">
+                                <div className="bg-blue-50 p-4 rounded-full">
+                                    <User className="w-8 h-8 text-blue-400" />
+                                </div>
+                                <p className="font-semibold text-gray-600">No coaches available yet.</p>
+                                <p className="text-sm text-gray-400 max-w-sm">
+                                    Coaches who set up their availability will appear here.
+                                </p>
+                            </div>
+                        ) : (
+                            <div className="divide-y">
+                                {coaches.map((coach) => {
+                                    const [daysPart = "", hoursPart = ""] = coach.availability.split("|");
+                                    const days = daysPart ? daysPart.split(",").filter(Boolean) : [];
+                                    const [startTime, endTime] = hoursPart ? hoursPart.split("-") : ["", ""];
+
+                                    return (
+                                        <div key={coach.user_id} className="p-5 flex flex-col md:flex-row md:items-center justify-between gap-4 hover:bg-gray-50 transition-colors">
+                                            <div className="flex items-center gap-4">
+                                                <div className="bg-blue-100 p-3 rounded-xl text-blue-600">
+                                                    <User className="w-6 h-6" />
+                                                </div>
+                                                <div>
+                                                    <h4 className="font-bold text-gray-900">{coach.name}</h4>
+                                                    {coach.specialization && (
+                                                        <p className="text-sm text-blue-600 font-medium">{coach.specialization}</p>
+                                                    )}
+                                                    <div className="flex flex-wrap items-center gap-2 mt-1">
+                                                        {days.length > 0 && (
+                                                            <div className="flex gap-1">
+                                                                {days.map((d) => (
+                                                                    <span key={d} className="text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 px-1.5 py-0.5 rounded">
+                                                                        {d}
+                                                                    </span>
+                                                                ))}
+                                                            </div>
+                                                        )}
+                                                        {startTime && endTime && (
+                                                            <span className="flex items-center gap-1 text-xs text-gray-500">
+                                                                <Clock className="w-3 h-3" />
+                                                                {startTime} – {endTime}
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div className="flex items-center gap-3 flex-shrink-0">
+                                                <span className="font-bold text-gray-800 text-sm bg-gray-50 border px-3 py-1.5 rounded-lg">
+                                                    LKR {coach.hourly_rate > 0 ? coach.hourly_rate.toLocaleString() : "—"}<span className="font-normal text-gray-400">/hr</span>
+                                                </span>
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        )}
                     </div>
                 </Section>
 

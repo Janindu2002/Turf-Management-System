@@ -7,7 +7,7 @@ interface AuthContextType {
     isAuthenticated: boolean;
     isLoading: boolean;
     login: (credentials: LoginCredentials) => Promise<User>;
-    register: (data: RegisterData) => Promise<void>;
+    register: (data: RegisterData | FormData, credentials?: LoginCredentials) => Promise<void>;
     logout: () => Promise<void>;
     checkAuth: () => Promise<void>;
 }
@@ -62,12 +62,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
     };
 
-    const register = async (data: RegisterData) => {
+    const register = async (data: RegisterData | FormData, credentials?: LoginCredentials) => {
         setIsLoading(true);
         try {
             await authAPI.register(data);
+            
             // After registration, automatically log in
-            await login({ email: data.email, password: data.password });
+            if (credentials) {
+                await login(credentials);
+            } else if (!(data instanceof FormData)) {
+                await login({ email: data.email, password: data.password });
+            }
         } finally {
             setIsLoading(false);
         }

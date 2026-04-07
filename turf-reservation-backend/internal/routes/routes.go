@@ -10,7 +10,7 @@ import (
 )
 
 // SetupRouter configures all application routes
-func SetupRouter(authHandler *handlers.AuthHandler, availabilityHandler *handlers.AvailabilityHandler, bookingHandler *handlers.BookingHandler, eventHandler *handlers.EventHandler, playerHandler *handlers.PlayerHandler, teamHandler *handlers.TeamHandler, cfg *config.Config) *gin.Engine {
+func SetupRouter(authHandler *handlers.AuthHandler, availabilityHandler *handlers.AvailabilityHandler, bookingHandler *handlers.BookingHandler, eventHandler *handlers.EventHandler, playerHandler *handlers.PlayerHandler, teamHandler *handlers.TeamHandler, coachHandler *handlers.CoachHandler, cfg *config.Config) *gin.Engine {
 	// Set Gin mode based on environment
 	if cfg.AppEnv == "production" {
 		gin.SetMode(gin.ReleaseMode)
@@ -90,6 +90,9 @@ func SetupRouter(authHandler *handlers.AuthHandler, availabilityHandler *handler
 			common.PUT("/players/profile", playerHandler.UpdateProfile)
 			common.PUT("/players/availability", playerHandler.ToggleAvailability)
 
+			// Coach browse route (any authenticated user)
+			common.GET("/coaches", coachHandler.GetAllCoaches)
+
 			// Team routes
 			common.GET("/teams", teamHandler.GetTeams)
 		}
@@ -132,8 +135,8 @@ func SetupRouter(authHandler *handlers.AuthHandler, availabilityHandler *handler
 		coach.Use(middleware.AuthMiddleware(cfg.JWTSecret))
 		coach.Use(middleware.RequireCoach())
 		{
-			// Placeholder for coach routes
-			// Example: coach.POST("/teams", teamHandler.CreateTeam)
+			coach.GET("/profile", coachHandler.GetMyProfile)
+			coach.PUT("/profile", coachHandler.UpdateProfile)
 		}
 	}
 

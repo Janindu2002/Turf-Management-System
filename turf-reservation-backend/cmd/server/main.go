@@ -31,6 +31,7 @@ func main() {
 	eventRepo := repositories.NewEventRepository(db)
 	playerRepo := repositories.NewPlayerRepository(db)
 	teamRepo := repositories.NewTeamRepository(db)
+	coachRepo := repositories.NewCoachRepository(db)
 
 	// Initialize services
 	emailService := services.NewEmailService(cfg)
@@ -45,18 +46,19 @@ func main() {
 	}
 
 	// Initialize handlers
-	authHandler := handlers.NewAuthHandler(userRepo, playerRepo, resetRepo, logRepo, emailService, cfg)
+	authHandler := handlers.NewAuthHandler(userRepo, playerRepo, coachRepo, resetRepo, logRepo, emailService, cfg)
 	availabilityHandler := handlers.NewAvailabilityHandler(timeSlotRepo)
 	bookingHandler := handlers.NewBookingHandler(bookingService)
 	eventHandler := handlers.NewEventHandler(eventService)
 	playerHandler := handlers.NewPlayerHandler(playerService)
 	teamHandler := handlers.NewTeamHandler(teamService)
+	coachHandler := handlers.NewCoachHandler(coachRepo)
 
 	// Start background workers
 	teamService.StartCleanupWorker()
 
 	// Setup routes
-	router := routes.SetupRouter(authHandler, availabilityHandler, bookingHandler, eventHandler, playerHandler, teamHandler, cfg)
+	router := routes.SetupRouter(authHandler, availabilityHandler, bookingHandler, eventHandler, playerHandler, teamHandler, coachHandler, cfg)
 
 	// Start server
 	serverAddr := ":" + cfg.ServerPort

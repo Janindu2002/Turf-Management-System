@@ -2,7 +2,10 @@ package handlers
 
 import (
 	"fmt"
+	"mime/multipart"
 	"net/http"
+	"os"
+	"path/filepath"
 	"regexp"
 	"strings"
 	"time"
@@ -22,6 +25,7 @@ import (
 type AuthHandler struct {
 	userRepo     *repositories.UserRepository
 	playerRepo   *repositories.PlayerRepository
+	coachRepo    *repositories.CoachRepository
 	resetRepo    *repositories.PasswordResetRepository
 	logRepo      *repositories.SecurityLogRepository
 	emailService *services.EmailService
@@ -29,10 +33,11 @@ type AuthHandler struct {
 }
 
 // NewAuthHandler creates a new auth handler
-func NewAuthHandler(userRepo *repositories.UserRepository, playerRepo *repositories.PlayerRepository, resetRepo *repositories.PasswordResetRepository, logRepo *repositories.SecurityLogRepository, emailService *services.EmailService, cfg *config.Config) *AuthHandler {
+func NewAuthHandler(userRepo *repositories.UserRepository, playerRepo *repositories.PlayerRepository, coachRepo *repositories.CoachRepository, resetRepo *repositories.PasswordResetRepository, logRepo *repositories.SecurityLogRepository, emailService *services.EmailService, cfg *config.Config) *AuthHandler {
 	return &AuthHandler{
 		userRepo:     userRepo,
 		playerRepo:   playerRepo,
+		coachRepo:    coachRepo,
 		resetRepo:    resetRepo,
 		logRepo:      logRepo,
 		emailService: emailService,
@@ -42,12 +47,12 @@ func NewAuthHandler(userRepo *repositories.UserRepository, playerRepo *repositor
 
 // RegisterRequest represents registration request body
 type RegisterRequest struct {
-	Name     string `json:"name" binding:"required"`
-	Email    string `json:"email" binding:"required,email"`
-	Phone    string `json:"phone"`
-	Password string `json:"password" binding:"required"`
-	Role     string `json:"role" binding:"required,oneof=player coach"`
-	HasTeam  *bool  `json:"has_team"`
+	Name     string `form:"name" json:"name" binding:"required"`
+	Email    string `form:"email" json:"email" binding:"required,email"`
+	Phone    string `form:"phone" json:"phone"`
+	Password string `form:"password" json:"password" binding:"required"`
+	Role     string `form:"role" json:"role" binding:"required,oneof=player coach"`
+	HasTeam  *bool  `form:"has_team" json:"has_team"`
 }
 
 // LoginRequest represents login request body
@@ -58,20 +63,60 @@ type LoginRequest struct {
 
 // Register handles user registration
 func (h *AuthHandler) Register(c *gin.Context) {
-	var req RegisterRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
+	// Parse multipart form first (32MB max) so both form fields and files are accessible
+	if err := c.Request.ParseMultipartForm(32 << 20); err != nil {
+		// Fallback: try parsing as regular form (for application/x-www-form-urlencoded or JSON)
+		if parseErr := c.Request.ParseForm(); parseErr != nil {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"success": false,
+				"error":   "Invalid request format",
+			})
+			return
+		}
+	}
+
+	// Extract fields manually from form
+	name := strings.TrimSpace(c.Request.FormValue("name"))
+	email := strings.ToLower(strings.TrimSpace(c.Request.FormValue("email")))
+	phone := strings.TrimSpace(c.Request.FormValue("phone"))
+	password := c.Request.FormValue("password")
+	role := strings.TrimSpace(c.Request.FormValue("role"))
+
+	// Validate required fields
+	if name == "" || email == "" || password == "" || role == "" {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"success": false,
-			"error":   "Invalid request: " + err.Error(),
+			"error":   "Name, email, password, and role are required",
+		})
+		return
+	}
+	if role != "player" && role != "coach" {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"error":   "Role must be 'player' or 'coach'",
 		})
 		return
 	}
 
-	// Normalize email
-	req.Email = strings.ToLower(strings.TrimSpace(req.Email))
+	// For coaches: validate certificate is present BEFORE creating any user record
+	var certFile multipart.File
+	var certHeader *multipart.FileHeader
+	if role == "coach" {
+		var err error
+		certFile, certHeader, err = c.Request.FormFile("certificate")
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"success": false,
+				"error":   "Coaching certificate is required",
+			})
+			return
+		}
+		defer certFile.Close()
+	}
+
 
 	// Validate password complexity
-	if err := h.validatePassword(req.Password); err != nil {
+	if err := h.validatePassword(password); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"success": false,
 			"error":   err.Error(),
@@ -79,8 +124,8 @@ func (h *AuthHandler) Register(c *gin.Context) {
 		return
 	}
 	// Validate phone number (exactly 10 digits)
-	if req.Phone != "" {
-		if err := h.validatePhone(req.Phone); err != nil {
+	if phone != "" {
+		if err := h.validatePhone(phone); err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{
 				"success": false,
 				"error":   err.Error(),
@@ -90,7 +135,7 @@ func (h *AuthHandler) Register(c *gin.Context) {
 	}
 
 	// Check if email already exists
-	exists, err := h.userRepo.EmailExists(req.Email)
+	exists, err := h.userRepo.EmailExists(email)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"success": false,
@@ -108,7 +153,7 @@ func (h *AuthHandler) Register(c *gin.Context) {
 	}
 
 	// Hash password
-	hashedPassword, err := utils.HashPassword(req.Password)
+	hashedPassword, err := utils.HashPassword(password)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"success": false,
@@ -119,11 +164,11 @@ func (h *AuthHandler) Register(c *gin.Context) {
 
 	// Create user
 	user := &models.User{
-		Name:     req.Name,
-		Email:    req.Email,
-		Phone:    req.Phone,
+		Name:     name,
+		Email:    email,
+		Phone:    phone,
 		Password: hashedPassword,
-		Role:     req.Role,
+		Role:     role,
 	}
 
 	if err := h.userRepo.CreateUser(user); err != nil {
@@ -135,12 +180,11 @@ func (h *AuthHandler) Register(c *gin.Context) {
 		return
 	}
 
-	// If the role is player, create a player record
-	if req.Role == "player" {
-		hasTeam := false
-		if req.HasTeam != nil {
-			hasTeam = *req.HasTeam
-		}
+	// Create role-specific record
+	switch role {
+	case "player":
+		hasTeamStr := c.Request.FormValue("has_team")
+		hasTeam := hasTeamStr == "true"
 		player := &models.Player{
 			UserID:  user.UserID,
 			HasTeam: hasTeam,
@@ -148,6 +192,42 @@ func (h *AuthHandler) Register(c *gin.Context) {
 		if err := h.playerRepo.UpsertPlayer(player); err != nil {
 			// We log the error but don't fail the registration as the user is already created
 			h.recordLog(c, &user.UserID, "registration_player", "failure", "Failed to create player record: "+err.Error())
+		}
+
+	case "coach":
+		// certFile and certHeader were already validated and fetched above
+		_ = certFile // already closed via defer
+
+		// Resolve absolute path for uploads dir
+		xwd, _ := os.Getwd()
+		uploadsDir := filepath.Join(xwd, "uploads", "certificates")
+		if err := os.MkdirAll(uploadsDir, os.ModePerm); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"success": false,
+				"error":   "Failed to prepare upload directory",
+			})
+			return
+		}
+
+		// Save the file using absolute path
+		filename := fmt.Sprintf("%d_%s_%s", user.UserID, time.Now().Format("20060102150405"), certHeader.Filename)
+		absPath := filepath.Join(uploadsDir, filename)
+		certificatePath := filepath.Join("uploads", "certificates", filename)
+		if err := c.SaveUploadedFile(certHeader, absPath); err != nil {
+			h.recordLog(c, &user.UserID, "registration_coach_file", "failure", "Failed to save certificate: "+err.Error())
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"success": false,
+				"error":   "Failed to process registration documents",
+			})
+			return
+		}
+
+		coach := &models.Coach{
+			UserID:      user.UserID,
+			Certificate: certificatePath,
+		}
+		if err := h.coachRepo.UpsertCoach(coach); err != nil {
+			h.recordLog(c, &user.UserID, "registration_coach", "failure", "Failed to create coach record: "+err.Error())
 		}
 	}
 
