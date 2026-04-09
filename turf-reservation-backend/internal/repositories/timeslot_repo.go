@@ -132,7 +132,13 @@ func (r *TimeSlotRepository) EnsureSlotsExistForDate(dateStr string) error {
 
 // UpdateStatus updates the status of a specific timeslot
 func (r *TimeSlotRepository) UpdateStatus(id int, status string) error {
-	query := `UPDATE time_slots SET status = $1 WHERE time_slot_id = $2`
+	var query string
+	if status == "available" {
+		query = `UPDATE time_slots SET status = $1, blocked_reason = '' WHERE time_slot_id = $2`
+	} else {
+		query = `UPDATE time_slots SET status = $1 WHERE time_slot_id = $2`
+	}
+
 	_, err := r.db.Exec(query, status, id)
 	if err != nil {
 		return fmt.Errorf("failed to update timeslot status: %w", err)

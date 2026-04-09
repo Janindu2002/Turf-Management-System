@@ -84,7 +84,14 @@ func (h *BookingHandler) RescheduleBooking(c *gin.Context) {
 		return
 	}
 
-	err = h.bookingService.RescheduleBooking(id, req.NewTimeSlotID)
+	// Get user ID from context
+	userID, exists := middleware.GetUserID(c)
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		return
+	}
+
+	err = h.bookingService.RescheduleBooking(id, req.NewTimeSlotID, userID)
 	if err != nil {
 		if err == services.ErrBookingNotFound {
 			c.JSON(http.StatusNotFound, gin.H{"error": "Booking not found"})
@@ -94,12 +101,13 @@ func (h *BookingHandler) RescheduleBooking(c *gin.Context) {
 			c.JSON(http.StatusConflict, gin.H{"error": "New timeslot is already booked"})
 			return
 		}
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to reschedule booking"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "Booking rescheduled successfully"})
 }
+
 
 // CancelBooking handles POST /api/bookings/:id/cancel
 func (h *BookingHandler) CancelBooking(c *gin.Context) {
@@ -109,13 +117,21 @@ func (h *BookingHandler) CancelBooking(c *gin.Context) {
 		return
 	}
 
-	err = h.bookingService.CancelBooking(id)
+	// Get user ID from context
+	userID, exists := middleware.GetUserID(c)
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		return
+	}
+
+	err = h.bookingService.CancelBooking(id, userID)
 	if err != nil {
+		println("CancelBooking error for ID", id, "User", userID, ":", err.Error())
 		if err == services.ErrBookingNotFound {
 			c.JSON(http.StatusNotFound, gin.H{"error": "Booking not found"})
 			return
 		}
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to cancel booking"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
@@ -180,6 +196,7 @@ func (h *BookingHandler) RejectBooking(c *gin.Context) {
 
 	err = h.bookingService.RejectBooking(id)
 	if err != nil {
+		println("RejectBooking error for ID", id, ":", err.Error())
 		if err == services.ErrBookingNotFound {
 			c.JSON(http.StatusNotFound, gin.H{"error": "Booking not found"})
 			return

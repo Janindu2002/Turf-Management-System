@@ -1,8 +1,10 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { Calendar, Clock, ArrowLeft, CheckCircle2, Loader2, AlertCircle } from "lucide-react";
+import { Calendar, Clock, ArrowLeft, CheckCircle2, Loader2, AlertCircle, User, Users, Star } from "lucide-react";
 import client from "@/api/client";
 import { bookingAPI } from "@/api/booking";
+import { getAllCoaches } from "@/api/coach";
+import type { CoachPublicProfile } from "@/api/coach";
 import { useAuth } from "@/context/AuthContext";
 import { ROUTES } from "@/constants";
 import logo from "@/assets/logo.jpeg";
@@ -31,6 +33,13 @@ export default function MakeReservation() {
     const [date, setDate] = useState("");
     const [slots, setSlots] = useState<TimeSlot[]>([]);
     const [selectedSlotId, setSelectedSlotId] = useState<number | null>(null);
+
+    // Coach Selection State
+    const [needsCoach, setNeedsCoach] = useState(false);
+    const [allCoaches, setAllCoaches] = useState<CoachPublicProfile[]>([]);
+    const [availableCoaches, setAvailableCoaches] = useState<CoachPublicProfile[]>([]);
+    const [selectedCoachId, setSelectedCoachId] = useState<number | null>(null);
+    const [loadingCoaches, setLoadingCoaches] = useState(false);
 
     // UI States
     const [loading, setLoading] = useState(false);
@@ -70,10 +79,64 @@ export default function MakeReservation() {
     const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const newDate = e.target.value;
         setDate(newDate);
+        setSelectedSlotId(null);
+        setSelectedCoachId(null);
         if (newDate) {
             fetchSlots(newDate);
         }
     };
+
+    // Helper: Check Coach Availability
+    const isCoachAvailable = (coach: CoachPublicProfile, selectedDate: string, slotStartTime: string) => {
+        if (!coach.availability || !coach.availability.includes("|")) return false;
+
+        try {
+            const [daysPart, timePart] = coach.availability.split("|");
+            const [startLimit, endLimit] = timePart.split("-");
+
+            // Check Day
+            const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+            const dayOfWeek = dayNames[new Date(selectedDate).getDay()];
+            if (!daysPart.includes(dayOfWeek)) return false;
+
+            // Check Time (Very simple string comparison works for HH:MM format)
+            return slotStartTime >= startLimit && slotStartTime < endLimit;
+        } catch (e) {
+            return false;
+        }
+    };
+
+    // Fetch Coaches
+    useEffect(() => {
+        if (needsCoach && allCoaches.length === 0) {
+            const fetchCoaches = async () => {
+                setLoadingCoaches(true);
+                try {
+                    const data = await getAllCoaches();
+                    setAllCoaches(data);
+                } catch (err) {
+                    console.error("Failed to fetch coaches", err);
+                } finally {
+                    setLoadingCoaches(false);
+                }
+            };
+            fetchCoaches();
+        }
+    }, [needsCoach, allCoaches.length]);
+
+    // Update available coaches whenever slot or needsCoach changes
+    useEffect(() => {
+        if (!needsCoach || !date || !selectedSlotId) {
+            setAvailableCoaches([]);
+            return;
+        }
+
+        const slot = slots.find(s => s.time_slot_id === selectedSlotId);
+        if (!slot) return;
+
+        const filtered = allCoaches.filter(c => isCoachAvailable(c, date, slot.start_time));
+        setAvailableCoaches(filtered);
+    }, [needsCoach, date, selectedSlotId, allCoaches, slots]);
 
     // Submit Booking
     const handleBooking = async () => {
@@ -81,6 +144,9 @@ export default function MakeReservation() {
 
         setSubmitting(true);
         try {
+            const selectedCoach = availableCoaches.find(c => c.user_id === selectedCoachId);
+            const coachRate = needsCoach && selectedCoach ? selectedCoach.hourly_rate : 0;
+
             if (isRescheduling) {
                 // PUT request to reschedule
                 await bookingAPI.rescheduleBooking(Number(rescheduleId), selectedSlotId);
@@ -88,7 +154,8 @@ export default function MakeReservation() {
                 // POST request to create the booking
                 await bookingAPI.createBooking({
                     time_slot_id: selectedSlotId,
-                    total_price: 2500, // Fixed price for now
+                    total_price: 2500 + coachRate,
+                    coach_id: needsCoach ? selectedCoachId : null,
                 });
             }
 
@@ -154,6 +221,31 @@ export default function MakeReservation() {
                             </p>
                         </div>
 
+                        {/* Coach Toggle */}
+                        <div className="bg-white p-6 rounded-xl shadow-sm border">
+                            <label className="flex items-center justify-between cursor-pointer group">
+                                <div className="flex items-center gap-3">
+                                    <div className={`p-2 rounded-lg transition-colors ${needsCoach ? 'bg-emerald-100 text-emerald-600' : 'bg-gray-100 text-gray-400'}`}>
+                                        <Users className="w-5 h-5" />
+                                    </div>
+                                    <div>
+                                        <span className="block text-sm font-bold text-gray-700">Book a Coach?</span>
+                                        <span className="text-[10px] text-gray-400 uppercase font-bold tracking-tighter">Optional Add-on</span>
+                                    </div>
+                                </div>
+                                <input
+                                    type="checkbox"
+                                    checked={needsCoach}
+                                    onChange={(e) => {
+                                        setNeedsCoach(e.target.checked);
+                                        if (!e.target.checked) setSelectedCoachId(null);
+                                    }}
+                                    className="sr-only peer"
+                                />
+                                <div className="relative w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600"></div>
+                            </label>
+                        </div>
+
                         {/* Summary / Confirmation Box */}
                         <div className="bg-emerald-50 p-6 rounded-xl border border-emerald-100">
                             <h3 className="font-bold text-emerald-900 mb-4">Booking Summary</h3>
@@ -170,9 +262,20 @@ export default function MakeReservation() {
                                             : "--"}
                                     </span>
                                 </div>
+                                {needsCoach && selectedCoachId && (
+                                    <div className="flex justify-between items-start animate-in fade-in slide-in-from-top-1 duration-200">
+                                        <span className="text-emerald-700">Coach:</span>
+                                        <div className="text-right">
+                                            <span className="font-medium block">{availableCoaches.find(c => c.user_id === selectedCoachId)?.name}</span>
+                                            <span className="text-[10px] text-emerald-600 font-bold uppercase">LKR {availableCoaches.find(c => c.user_id === selectedCoachId)?.hourly_rate.toLocaleString()} /hr</span>
+                                        </div>
+                                    </div>
+                                )}
                                 <div className="flex justify-between border-t border-emerald-200 pt-3 mt-3">
                                     <span className="font-bold text-emerald-900">Total:</span>
-                                    <span className="font-bold text-emerald-900">LKR 2,500</span>
+                                    <span className="font-bold text-emerald-900 text-lg">
+                                        LKR {(2500 + (needsCoach && selectedCoachId ? (availableCoaches.find(c => c.user_id === selectedCoachId)?.hourly_rate || 0) : 0)).toLocaleString()}
+                                    </span>
                                 </div>
                             </div>
 
@@ -250,6 +353,80 @@ export default function MakeReservation() {
                                                 </button>
                                             )
                                         })}
+                                    </div>
+                                )}
+                            </div>
+                        )}
+
+                        {/* Coach Selection Grid */}
+                        {needsCoach && (
+                            <div className="mt-8 bg-white p-6 rounded-xl shadow-sm border animate-in fade-in slide-in-from-bottom-2 duration-300">
+                                <div className="flex items-center justify-between mb-6">
+                                    <div>
+                                        <h3 className="font-bold text-gray-800">Available Coaches</h3>
+                                        <p className="text-xs text-gray-500">Pick a coach available during your selected time</p>
+                                    </div>
+                                    <div className="flex items-center gap-2 bg-emerald-50 px-3 py-1 rounded-full border border-emerald-100">
+                                        <Star className="w-3 h-3 text-emerald-600 fill-emerald-600" />
+                                        <span className="text-[10px] font-bold text-emerald-700 uppercase">Pro Verified</span>
+                                    </div>
+                                </div>
+
+                                {!selectedSlotId ? (
+                                    <div className="py-10 flex flex-col items-center justify-center text-gray-400 bg-gray-50 rounded-lg border-2 border-dashed">
+                                        <Clock className="w-8 h-8 mb-2 opacity-20" />
+                                        <p className="text-sm">Select a time slot first to see available coaches</p>
+                                    </div>
+                                ) : loadingCoaches ? (
+                                    <div className="py-12 flex flex-col items-center justify-center gap-3">
+                                        <Loader2 className="w-8 h-8 animate-spin text-emerald-600" />
+                                        <p className="text-sm text-gray-500">Finding your perfect match...</p>
+                                    </div>
+                                ) : availableCoaches.length === 0 ? (
+                                    <div className="py-10 flex flex-col items-center justify-center text-center bg-gray-50 rounded-lg border">
+                                        <User className="w-10 h-10 text-gray-300 mb-2" />
+                                        <p className="text-sm font-medium text-gray-600">No coaches available for this slot</p>
+                                        <p className="text-xs text-gray-400 mt-1">Try selecting a different time or date</p>
+                                    </div>
+                                ) : (
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                        {availableCoaches.map((coach) => (
+                                            <button
+                                                key={coach.user_id}
+                                                onClick={() => setSelectedCoachId(coach.user_id)}
+                                                className={`
+                                                    p-4 rounded-xl border-2 transition-all text-left flex items-start gap-4 relative overflow-hidden group
+                                                    ${selectedCoachId === coach.user_id
+                                                        ? "bg-emerald-50 border-emerald-600 shadow-md ring-2 ring-emerald-100"
+                                                        : "bg-white border-gray-100 hover:border-emerald-200 hover:bg-gray-50"
+                                                    }
+                                                `}
+                                            >
+                                                <div className={`
+                                                    w-12 h-12 rounded-full flex items-center justify-center text-lg font-bold shadow-sm transition-colors
+                                                    ${selectedCoachId === coach.user_id ? 'bg-emerald-600 text-white' : 'bg-gray-100 text-gray-400 group-hover:bg-emerald-100 group-hover:text-emerald-600'}
+                                                `}>
+                                                    {coach.name.charAt(0)}
+                                                </div>
+                                                <div className="flex-1 min-w-0">
+                                                    <h4 className="font-bold text-gray-900 truncate mb-0.5">{coach.name}</h4>
+                                                    <p className="text-xs text-gray-500 mb-2">{coach.specialization || "Expert Coach"}</p>
+                                                    <div className="flex items-center justify-between mt-auto">
+                                                        <span className="text-sm font-bold text-emerald-700">LKR {coach.hourly_rate.toLocaleString()}<span className="text-[10px] font-normal text-gray-400">/hr</span></span>
+                                                        {selectedCoachId === coach.user_id && (
+                                                            <div className="bg-emerald-600 text-white rounded-full p-1 shadow-sm">
+                                                                <CheckCircle2 className="w-3 h-3" />
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                                
+                                                {/* Background decoration */}
+                                                <div className="absolute -right-2 -bottom-2 opacity-[0.03] group-hover:scale-110 transition-transform">
+                                                    <Users className="w-16 h-16 text-black" />
+                                                </div>
+                                            </button>
+                                        ))}
                                     </div>
                                 )}
                             </div>

@@ -3,6 +3,7 @@ package services
 import (
 	"errors"
 	"fmt"
+	"log"
 	"turf-reservation-backend/internal/models"
 	"turf-reservation-backend/internal/repositories"
 )
@@ -60,8 +61,8 @@ func (s *BookingService) MakeReservation(booking *models.Booking) error {
 	return nil
 }
 
-// RescheduleBooking moves a booking to a new timeslot
-func (s *BookingService) RescheduleBooking(bookingID int, newTimeSlotID int) error {
+// RescheduleBooking moves a booking to a new timeslot and resets status to pending
+func (s *BookingService) RescheduleBooking(bookingID int, newTimeSlotID int, userID int) error {
 	// Get existing booking
 	booking, err := s.bookingRepo.GetByID(bookingID)
 	if err != nil {
@@ -69,6 +70,12 @@ func (s *BookingService) RescheduleBooking(bookingID int, newTimeSlotID int) err
 	}
 	if booking == nil {
 		return ErrBookingNotFound
+	}
+
+	// Verify ownership
+	if *booking.UserID != userID {
+		log.Printf("RescheduleBooking: unauthorized attempt by user %d to reschedule booking %d owned by %d", userID, bookingID, *booking.UserID)
+		return errors.New("unauthorized: you can only reschedule your own bookings")
 	}
 
 	// Check if new timeslot is available
@@ -91,8 +98,9 @@ func (s *BookingService) RescheduleBooking(bookingID int, newTimeSlotID int) err
 		return err
 	}
 
-	// Update booking with new timeslot
+	// Update booking with new timeslot and reset status to pending
 	*booking.TimeSlotID = newTimeSlotID
+	booking.Status = "pending"
 	err = s.bookingRepo.Update(booking)
 	if err != nil {
 		// Rollback old timeslot status if update fails
@@ -109,26 +117,36 @@ func (s *BookingService) RescheduleBooking(bookingID int, newTimeSlotID int) err
 	return nil
 }
 
-// CancelBooking cancels a booking and frees the timeslot
-func (s *BookingService) CancelBooking(bookingID int) error {
+
+// CancelBooking cancels a booking and frees the timeslot, verifying ownership
+func (s *BookingService) CancelBooking(bookingID int, userID int) error {
 	booking, err := s.bookingRepo.GetByID(bookingID)
 	if err != nil {
+		log.Printf("CancelBooking: failed to get booking %d: %v", bookingID, err)
 		return err
 	}
 	if booking == nil {
 		return ErrBookingNotFound
 	}
 
+	// Verify ownership
+	if *booking.UserID != userID {
+		log.Printf("CancelBooking: unauthorized attempt by user %d to cancel booking %d owned by %d", userID, bookingID, *booking.UserID)
+		return errors.New("unauthorized: you can only cancel your own bookings")
+	}
+
 	// Update booking status
 	booking.Status = "cancelled"
 	err = s.bookingRepo.Update(booking)
 	if err != nil {
+		log.Printf("CancelBooking: failed to update booking status for %d: %v", bookingID, err)
 		return err
 	}
 
 	// Free the timeslot
 	err = s.timeslotRepo.UpdateStatus(*booking.TimeSlotID, "available")
 	if err != nil {
+		log.Printf("CancelBooking: failed to free timeslot %d for booking %d: %v", *booking.TimeSlotID, bookingID, err)
 		return err
 	}
 
@@ -163,6 +181,7 @@ func (s *BookingService) ApproveBooking(bookingID int) error {
 func (s *BookingService) RejectBooking(bookingID int) error {
 	booking, err := s.bookingRepo.GetByID(bookingID)
 	if err != nil {
+		log.Printf("RejectBooking: failed to get booking %d: %v", bookingID, err)
 		return err
 	}
 	if booking == nil {
@@ -172,11 +191,18 @@ func (s *BookingService) RejectBooking(bookingID int) error {
 	booking.Status = "cancelled"
 	err = s.bookingRepo.Update(booking)
 	if err != nil {
+		log.Printf("RejectBooking: failed to update booking status for %d: %v", bookingID, err)
 		return err
 	}
 
 	// Free the timeslot
-	return s.timeslotRepo.UpdateStatus(*booking.TimeSlotID, "available")
+	err = s.timeslotRepo.UpdateStatus(*booking.TimeSlotID, "available")
+	if err != nil {
+		log.Printf("RejectBooking: failed to free timeslot %d for booking %d: %v", *booking.TimeSlotID, bookingID, err)
+		return err
+	}
+
+	return nil
 }
 
 // RemoveCancelledBooking permanently deletes a cancelled booking for a user
