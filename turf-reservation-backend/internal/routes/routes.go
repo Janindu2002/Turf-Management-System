@@ -111,6 +111,7 @@ func SetupRouter(authHandler *handlers.AuthHandler, availabilityHandler *handler
 			admin.GET("/events", eventHandler.GetAllEvents)
 			admin.POST("/events/:id/approve", eventHandler.ApproveEvent)
 			admin.POST("/events/:id/reject", eventHandler.RejectEvent)
+			admin.POST("/events/:id/cancel", eventHandler.CancelEvent)
 
 			// Slot Management
 			admin.POST("/slots/block", availabilityHandler.BlockSlots)

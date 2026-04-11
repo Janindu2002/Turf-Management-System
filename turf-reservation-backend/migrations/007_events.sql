@@ -6,6 +6,7 @@ CREATE TABLE IF NOT EXISTS events (
     start_date          DATE NOT NULL,
     start_time          TIME NOT NULL,
     end_date            DATE NOT NULL,
+    end_time            TIME NOT NULL,
     expected_participants INT,
     description         TEXT,
     requirements        TEXT,

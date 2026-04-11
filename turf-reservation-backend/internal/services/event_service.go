@@ -64,6 +64,33 @@ func (s *EventService) RejectEvent(eventID int) error {
 	return s.eventRepo.UpdateStatus(eventID, "rejected")
 }
 
+// CancelEvent marks an event as cancelled and releases corresponding slots if it was approved
+func (s *EventService) CancelEvent(eventID int) error {
+	// 1. Get event details
+	ev, err := s.eventRepo.GetByID(eventID)
+	if err != nil {
+		return err
+	}
+	if ev == nil {
+		return ErrEventNotFound
+	}
+
+	previousStatus := ev.Status
+
+	// 2. Update status in db
+	err = s.eventRepo.UpdateStatus(eventID, "cancelled")
+	if err != nil {
+		return err
+	}
+
+	// 3. If it was approved, release the slots
+	if previousStatus == "approved" {
+		return s.timeslotRepo.ReleaseSlotsForEvent(ev.StartDate, ev.StartTime, ev.EndDate, ev.EndTime, ev.EventName)
+	}
+
+	return nil
+}
+
 // GetMyEvents returns all events hosted by a specific user
 func (s *EventService) GetMyEvents(userID int) ([]*models.Event, error) {
 	return s.eventRepo.ListByUserID(userID)

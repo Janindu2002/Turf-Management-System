@@ -219,3 +219,15 @@ func (r *TimeSlotRepository) UnblockSlot(id int) error {
 	_, err := r.db.Exec(query, id)
 	return err
 }
+// ReleaseSlotsForEvent resets slots within a range back to 'available' if they were booked for this specific event
+func (r *TimeSlotRepository) ReleaseSlotsForEvent(startDate, startTime, endDate, endTime, eventName string) error {
+	query := `
+		UPDATE time_slots 
+		SET status = 'available', blocked_reason = ''
+		WHERE date >= $1 AND date <= $2
+		AND start_time::time >= $3 AND start_time::time < $4
+		AND blocked_reason = $5
+	`
+	_, err := r.db.Exec(query, startDate, endDate, startTime, endTime, eventName)
+	return err
+}

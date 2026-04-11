@@ -117,6 +117,20 @@ func (h *EventHandler) RejectEvent(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "Event rejected successfully"})
 }
 
+// CancelEvent handles POST /api/admin/events/:id/cancel
+func (h *EventHandler) CancelEvent(c *gin.Context) {
+	id, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid event ID"})
+		return
+	}
+	if err := h.eventService.CancelEvent(id); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to cancel event"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "Event cancelled successfully"})
+}
+
 // GetMyEvents handles GET /api/events/my
 func (h *EventHandler) GetMyEvents(c *gin.Context) {
 	userID, exists := middleware.GetUserID(c)

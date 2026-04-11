@@ -56,6 +56,11 @@ export const eventAPI = {
         return response.data;
     },
 
+    cancelEvent: async (id: number): Promise<{ message: string }> => {
+        const response = await client.post<{ message: string }>(`/api/admin/events/${id}/cancel`, {});
+        return response.data;
+    },
+
     getAllEvents: async (): Promise<EventResponse[]> => {
         const response = await client.get<EventResponse[]>("/api/admin/events");
         return response.data;

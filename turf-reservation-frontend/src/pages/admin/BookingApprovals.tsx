@@ -112,6 +112,21 @@ export default function BookingApprovals() {
         }
     };
 
+    const handleCancelEvent = async (id: number) => {
+        if (!window.confirm("Are you sure you want to CANCEL this approved event? Reserved slots will be released immediately.")) return;
+        try {
+            await eventAPI.cancelEvent(id);
+            // Refresh events to show updated status
+            fetchEvents();
+            // Update selected event status in modal or close it
+            setSelectedEvent(prev => prev ? { ...prev, status: 'cancelled' } : null);
+        } catch (err: any) {
+            console.error("Failed to cancel event:", err);
+            const detail = err.response?.data?.error || err.message || "Unknown error";
+            alert(`Failed to cancel event: ${detail}`);
+        }
+    };
+
     const displayedEvents = eventTab === "pending" ? pendingEvents : allEvents;
 
     return (
@@ -215,6 +230,18 @@ export default function BookingApprovals() {
                                     >
                                         <CheckCircle2 className="w-5 h-5" /> Approve Event
                                     </button>
+                                </div>
+                            )}
+
+                            {selectedEvent.status === 'approved' && (
+                                <div className="pt-4 sticky bottom-0 bg-white">
+                                    <button
+                                        onClick={() => handleCancelEvent(selectedEvent.event_id)}
+                                        className="w-full py-4 bg-red-50 text-red-600 border border-red-200 rounded-xl hover:bg-red-100 font-bold transition-all flex items-center justify-center gap-2"
+                                    >
+                                        <XCircle className="w-5 h-5" /> Cancel Approved Event
+                                    </button>
+                                    <p className="text-[10px] text-gray-400 text-center mt-3 uppercase tracking-widest font-bold">Release reserved slots immediately upon cancellation</p>
                                 </div>
                             )}
                         </div>
