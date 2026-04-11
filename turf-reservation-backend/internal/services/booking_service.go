@@ -40,8 +40,15 @@ func (s *BookingService) MakeReservation(booking *models.Booking) error {
 		return ErrSlotNotAvailable
 	}
 
-	// Set booking status
+	// Set initial approval statuses
+	if booking.CoachID != nil {
+		booking.CoachApprovalStatus = "pending"
+	} else {
+		booking.CoachApprovalStatus = "none"
+	}
+	booking.AdminApprovalStatus = "pending"
 	booking.Status = "pending"
+
 	if booking.PaymentStatus == "" {
 		booking.PaymentStatus = "pending"
 	}
@@ -173,7 +180,13 @@ func (s *BookingService) ApproveBooking(bookingID int) error {
 		return ErrBookingNotFound
 	}
 
-	booking.Status = "confirmed"
+	booking.AdminApprovalStatus = "approved"
+
+	// If no coach is required or coach has already approved, set status to confirmed
+	if booking.CoachID == nil || booking.CoachApprovalStatus == "approved" {
+		booking.Status = "confirmed"
+	}
+
 	return s.bookingRepo.Update(booking)
 }
 
@@ -208,4 +221,61 @@ func (s *BookingService) RejectBooking(bookingID int) error {
 // RemoveCancelledBooking permanently deletes a cancelled booking for a user
 func (s *BookingService) RemoveCancelledBooking(bookingID int, userID int) error {
 	return s.bookingRepo.DeleteCancelled(bookingID, userID)
+}
+
+// CoachApproveBooking marks a booking as approved by the coach
+func (s *BookingService) CoachApproveBooking(bookingID int, coachID int) error {
+	booking, err := s.bookingRepo.GetByID(bookingID)
+	if err != nil {
+		return err
+	}
+	if booking == nil {
+		return ErrBookingNotFound
+	}
+
+	// Verify it's the right coach
+	if booking.CoachID == nil || *booking.CoachID != coachID {
+		return errors.New("unauthorized: you are not the assigned coach for this booking")
+	}
+
+	booking.CoachApprovalStatus = "approved"
+
+	// If admin has already approved, set status to confirmed
+	if booking.AdminApprovalStatus == "approved" {
+		booking.Status = "confirmed"
+	}
+
+	return s.bookingRepo.Update(booking)
+}
+
+// CoachRejectBooking marks a booking as rejected by the coach
+func (s *BookingService) CoachRejectBooking(bookingID int, coachID int) error {
+	booking, err := s.bookingRepo.GetByID(bookingID)
+	if err != nil {
+		return err
+	}
+	if booking == nil {
+		return ErrBookingNotFound
+	}
+
+	// Verify it's the right coach
+	if booking.CoachID == nil || *booking.CoachID != coachID {
+		return errors.New("unauthorized: you are not the assigned coach for this booking")
+	}
+
+	booking.CoachApprovalStatus = "rejected"
+	booking.Status = "cancelled" // Rejecting by coach cancels the overall booking
+
+	err = s.bookingRepo.Update(booking)
+	if err != nil {
+		return err
+	}
+
+	// Free the timeslot
+	return s.timeslotRepo.UpdateStatus(*booking.TimeSlotID, "available")
+}
+
+// GetCoachBookings retrieves all bookings assigned to a coach
+func (s *BookingService) GetCoachBookings(coachID int) ([]*models.Booking, error) {
+	return s.bookingRepo.ListByCoach(coachID)
 }

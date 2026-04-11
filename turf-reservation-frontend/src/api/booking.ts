@@ -11,10 +11,12 @@ export interface BookingResponse {
     booking_id: number;
     user_id: number;
     time_slot_id: number;
-    coach_id?: number;
-    event_id?: number;
+    coach_id?: number | null;
+    event_id?: number | null;
     booking_date: string;
     status: 'confirmed' | 'cancelled' | 'pending';
+    coach_approval_status: 'none' | 'pending' | 'approved' | 'rejected';
+    admin_approval_status: 'none' | 'pending' | 'approved' | 'rejected';
     total_price: number;
     payment_status: 'pending' | 'paid';
     slot_date?: string;
@@ -22,6 +24,8 @@ export interface BookingResponse {
     end_time?: string;
     player_name?: string;
     player_email?: string;
+    coach_name?: string;
+    turf_name?: string;
 }
 
 export const bookingAPI = {
@@ -65,6 +69,22 @@ export const bookingAPI = {
 
     deleteBooking: async (id: number): Promise<{ message: string }> => {
         const response = await client.delete<{ message: string }>(`/api/bookings/${id}`);
+        return response.data;
+    },
+
+    // Coach methods
+    getCoachRequests: async (): Promise<BookingResponse[]> => {
+        const response = await client.get<BookingResponse[]>('/api/coach/bookings');
+        return response.data;
+    },
+
+    coachApproveBooking: async (id: number): Promise<{ message: string }> => {
+        const response = await client.post<{ message: string }>(`/api/coach/bookings/${id}/approve`, {});
+        return response.data;
+    },
+
+    coachRejectBooking: async (id: number): Promise<{ message: string }> => {
+        const response = await client.post<{ message: string }>(`/api/coach/bookings/${id}/reject`, {});
         return response.data;
     }
 };

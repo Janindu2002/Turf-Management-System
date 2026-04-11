@@ -142,6 +142,9 @@ func SetupRouter(authHandler *handlers.AuthHandler, availabilityHandler *handler
 		{
 			coach.GET("/profile", coachHandler.GetMyProfile)
 			coach.PUT("/profile", coachHandler.UpdateProfile)
+			coach.GET("/bookings", bookingHandler.GetCoachRequests)
+			coach.POST("/bookings/:id/approve", bookingHandler.CoachApproveBooking)
+			coach.POST("/bookings/:id/reject", bookingHandler.CoachRejectBooking)
 		}
 	}
 

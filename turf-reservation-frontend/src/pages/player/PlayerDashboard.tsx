@@ -256,6 +256,19 @@ export default function PlayerDashboard() {
                                                     <span className="w-1 h-1 bg-gray-300 rounded-full"></span>
                                                     <MapPin className="w-3 h-3" /> Main Turf
                                                 </div>
+                                                {booking.coach_id && (
+                                                    <div className="mt-2 flex items-center gap-2">
+                                                        <div className="flex items-center gap-1.5 px-2 py-0.5 bg-blue-50 text-blue-600 rounded text-[11px] font-bold border border-blue-100">
+                                                            Coach: {booking.coach_name || "Assigned"}
+                                                        </div>
+                                                        <span className={`text-[10px] font-bold uppercase tracking-wide
+                                                            ${booking.coach_approval_status === 'approved' ? 'text-green-600' :
+                                                                booking.coach_approval_status === 'rejected' ? 'text-red-600' : 'text-yellow-600'}
+                                                        `}>
+                                                            {booking.coach_approval_status === 'pending' ? '• Waiting for Approval' : `• Request ${booking.coach_approval_status}`}
+                                                        </span>
+                                                    </div>
+                                                )}
                                             </div>
                                         </div>
 

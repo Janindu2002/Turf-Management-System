@@ -1,23 +1,70 @@
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
-    CalendarCheck,
-    Users,
     Clock,
     LogOut,
     CalendarDays,
     Inbox,
-    Settings
+    Settings,
+    Loader2
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
-import Card from "@/components/ui/Card";
 import Section from "@/components/ui/Section";
 import { ROUTES } from "@/constants";
-
+import { bookingAPI } from "@/api/booking";
 import logo from "../../assets/logo.jpeg";
 
 export default function CoachDashboard() {
     const navigate = useNavigate();
     const { logout: handleLogout } = useAuth();
+    
+    // Stats states
+    const [pendingCount, setPendingCount] = useState<number | null>(null);
+    const [nextSession, setNextSession] = useState<string>("No upcoming sessions");
+    const [loading, setLoading] = useState(true);
+
+    const fetchDashboardStats = async () => {
+        try {
+            setLoading(true);
+            const bookings = await bookingAPI.getCoachRequests();
+            
+            // 1. Calculate Pending Requests
+            const pending = bookings.filter(b => b.coach_approval_status === "pending").length;
+            setPendingCount(pending);
+
+            // 2. Find Next Confirmed Session
+            const now = new Date();
+            const confirmedBookings = bookings.filter(b => b.status === "confirmed" && b.slot_date);
+            
+            if (confirmedBookings.length > 0) {
+                // Sort by date and time
+                const sorted = confirmedBookings.sort((a, b) => {
+                    const dateA = new Date(`${a.slot_date}T${a.start_time}`);
+                    const dateB = new Date(`${b.slot_date}T${b.start_time}`);
+                    return dateA.getTime() - dateB.getTime();
+                });
+
+                // Find first one in the future
+                const upcoming = sorted.find(b => new Date(`${b.slot_date}T${b.start_time}`) > now);
+                
+                if (upcoming) {
+                    const date = new Date(`${upcoming.slot_date}T${upcoming.start_time}`);
+                    const isToday = date.toDateString() === now.toDateString();
+                    const day = isToday ? "Today" : date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+                    const timeStr = date.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+                    setNextSession(`${day} ${timeStr}`);
+                }
+            }
+        } catch (err) {
+            console.error("Failed to fetch coach dashboard stats:", err);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        fetchDashboardStats();
+    }, []);
 
     const logout = async () => {
         await handleLogout();
@@ -56,31 +103,30 @@ export default function CoachDashboard() {
                     <p className="text-gray-600">Manage your training sessions and player roster.</p>
                 </div>
 
-                {/* Stats */}
-                <div className="grid md:grid-cols-3 gap-6">
-                    <Card title="Upcoming Sessions" value="5" icon={<CalendarCheck />} color="blue" />
-                    <Card title="Players Trained" value="14" icon={<Users />} color="blue" />
-                    <Card title="Hours Coached" value="26" icon={<Clock />} color="blue" />
-                </div>
-
                 {/* Main Navigation Sections */}
                 <div className="grid md:grid-cols-3 gap-6">
 
                     {/* 1. Schedule */}
                     <Section title="My Schedule">
-                        <div className="bg-white p-6 rounded-xl shadow-sm border h-full flex flex-col justify-between">
+                        <div className="bg-white p-6 rounded-xl shadow-sm border h-full flex flex-col justify-between group">
                             <div>
                                 <p className="text-gray-600 text-sm mb-4">
                                     View your upcoming training sessions and managed team events.
                                 </p>
                                 <div className="flex items-center gap-2">
-                                    <span className="w-2 h-2 bg-green-500 rounded-full"></span>
-                                    <span className="text-xs font-semibold text-gray-700">Next: Today 4:00 PM</span>
+                                    {loading ? (
+                                        <Loader2 className="w-3 h-3 animate-spin text-gray-400" />
+                                    ) : (
+                                        <span className={`w-2 h-2 rounded-full ${nextSession !== "No upcoming sessions" ? "bg-green-500 animate-pulse" : "bg-gray-300"}`}></span>
+                                    )}
+                                    <span className="text-xs font-semibold text-gray-700">
+                                        Next: {loading ? "Checking..." : nextSession}
+                                    </span>
                                 </div>
                             </div>
                             <button
                                 onClick={() => navigate(ROUTES.COACH_SCHEDULE)}
-                                className="mt-4 w-full bg-blue-600 text-white font-bold py-2 rounded-lg hover:bg-blue-700 flex items-center justify-center gap-2 transition-all"
+                                className="mt-4 w-full bg-white text-blue-600 border border-blue-200 font-bold py-2 rounded-lg hover:bg-blue-50 flex items-center justify-center gap-2 transition-all shadow-sm group-hover:border-blue-300"
                             >
                                 <CalendarDays className="w-4 h-4" /> View Schedule
                             </button>
@@ -89,18 +135,35 @@ export default function CoachDashboard() {
 
                     {/* 2. Requests */}
                     <Section title="Player Requests">
-                        <div className="bg-white p-6 rounded-xl shadow-sm border h-full flex flex-col justify-between">
+                        <div className="bg-white p-6 rounded-xl shadow-sm border h-full flex flex-col justify-between group">
                             <div>
                                 <p className="text-gray-600 text-sm mb-4">
-                                    Manage requests from players seeking 1-on-1 coaching or team management.
+                                    {loading ? "Checking for new requests..." : 
+                                     (pendingCount ?? 0) > 0 ? `You have ${pendingCount} player ${pendingCount === 1 ? 'request' : 'requests'} waiting for your approval.` : 
+                                     "Review players who want to book your coaching sessions."}
                                 </p>
                                 <div className="flex gap-2">
-                                    <span className="text-xs bg-red-100 text-red-700 px-2 py-1 rounded font-semibold">2 Pending</span>
+                                    {loading ? (
+                                        <span className="text-[10px] text-gray-400">Updating...</span>
+                                    ) : (pendingCount ?? 0) >= 5 ? (
+                                        <span className="text-xs bg-red-600 text-white px-2 py-1 rounded-full font-bold shadow-md animate-pulse">
+                                            {pendingCount} High Priority
+                                        </span>
+                                    ) : (pendingCount ?? 0) > 0 ? (
+                                        <span className="text-xs bg-blue-500 text-white px-2 py-1 rounded-full font-bold shadow-sm animate-bounce">
+                                            {pendingCount} Pending
+                                        </span>
+                                    ) : (
+                                        <span className="text-[10px] bg-green-50 text-green-600 px-2 py-1 rounded font-bold uppercase tracking-wider flex items-center gap-1">
+                                            <span className="w-1.5 h-1.5 bg-green-500 rounded-full"></span>
+                                            All Caught Up
+                                        </span>
+                                    )}
                                 </div>
                             </div>
                             <button
                                 onClick={() => navigate(ROUTES.COACH_REQUESTS)}
-                                className="mt-4 w-full bg-white text-blue-600 border border-blue-200 font-bold py-2 rounded-lg hover:bg-blue-50 flex items-center justify-center gap-2 transition-all"
+                                className="mt-4 w-full bg-white text-blue-600 border border-blue-200 font-bold py-2 rounded-lg hover:bg-blue-50 flex items-center justify-center gap-2 transition-all shadow-sm group-hover:border-blue-300"
                             >
                                 <Inbox className="w-4 h-4" /> View Requests
                             </button>
@@ -109,18 +172,18 @@ export default function CoachDashboard() {
 
                     {/* 3. Availability */}
                     <Section title="Availability">
-                        <div className="bg-white p-6 rounded-xl shadow-sm border h-full flex flex-col justify-between">
+                        <div className="bg-white p-6 rounded-xl shadow-sm border h-full flex flex-col justify-between group">
                             <div>
                                 <p className="text-gray-600 text-sm mb-4">
                                     Set your coaching hours and block out dates for leave.
                                 </p>
-                                <div className="flex items-center gap-2 bg-gray-50 p-2 rounded text-xs text-gray-600">
-                                    <Clock className="w-3 h-3" /> Mon-Fri: 16:00 - 20:00
+                                <div className="flex items-center gap-2 bg-gray-50 p-2 rounded text-[10px] text-gray-500 font-bold">
+                                    <Clock className="w-3 h-3 text-blue-500" /> ACTIVE SLOTS ENABLED
                                 </div>
                             </div>
                             <button
                                 onClick={() => navigate(ROUTES.COACH_AVAILABILITY)}
-                                className="mt-4 w-full bg-gray-900 text-white font-bold py-2 rounded-lg hover:bg-gray-800 flex items-center justify-center gap-2 transition-all"
+                                className="mt-4 w-full bg-white text-blue-600 border border-blue-200 font-bold py-2 rounded-lg hover:bg-blue-50 flex items-center justify-center gap-2 transition-all shadow-sm group-hover:border-blue-300"
                             >
                                 <Settings className="w-4 h-4" /> Manage Slots
                             </button>

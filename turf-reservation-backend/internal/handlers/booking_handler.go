@@ -230,3 +230,74 @@ func (h *BookingHandler) RemoveCancelledBooking(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{"message": "Booking removed successfully"})
 }
+
+// GetCoachRequests handles GET /api/coach/bookings
+func (h *BookingHandler) GetCoachRequests(c *gin.Context) {
+	coachID, exists := middleware.GetUserID(c)
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		return
+	}
+
+	bookings, err := h.bookingService.GetCoachBookings(coachID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch coach bookings"})
+		return
+	}
+
+	c.JSON(http.StatusOK, bookings)
+}
+
+// CoachApproveBooking handles POST /api/coach/bookings/:id/approve
+func (h *BookingHandler) CoachApproveBooking(c *gin.Context) {
+	id, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid booking ID"})
+		return
+	}
+
+	coachID, exists := middleware.GetUserID(c)
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		return
+	}
+
+	err = h.bookingService.CoachApproveBooking(id, coachID)
+	if err != nil {
+		if err == services.ErrBookingNotFound {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Booking not found"})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Booking approved by coach"})
+}
+
+// CoachRejectBooking handles POST /api/coach/bookings/:id/reject
+func (h *BookingHandler) CoachRejectBooking(c *gin.Context) {
+	id, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid booking ID"})
+		return
+	}
+
+	coachID, exists := middleware.GetUserID(c)
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		return
+	}
+
+	err = h.bookingService.CoachRejectBooking(id, coachID)
+	if err != nil {
+		if err == services.ErrBookingNotFound {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Booking not found"})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Booking rejected by coach"})
+}
