@@ -16,8 +16,8 @@ export default function CoachRequests() {
         try {
             setLoading(true);
             const data = await bookingAPI.getCoachRequests();
-            // Only show pending coach approvals
-            setRequests(data.filter(r => r.coach_approval_status === "pending"));
+            // Only show pending coach approvals that are NOT cancelled
+            setRequests(data.filter(r => r.coach_approval_status === "pending" && r.status !== "cancelled"));
         } catch (err) {
             console.error("Failed to fetch coach requests:", err);
             setError("Could not load player requests.");

@@ -15,8 +15,8 @@ export default function CoachSchedule() {
         try {
             setLoading(true);
             const data = await bookingAPI.getCoachRequests();
-            // Show sessions that the coach has approved
-            setSessions(data.filter(b => b.coach_approval_status === "approved"));
+            // Show sessions that the coach has approved and are NOT cancelled
+            setSessions(data.filter(b => b.coach_approval_status === "approved" && b.status !== "cancelled"));
         } catch (err) {
             console.error("Failed to fetch coach schedule:", err);
             setError("Could not load your schedule.");

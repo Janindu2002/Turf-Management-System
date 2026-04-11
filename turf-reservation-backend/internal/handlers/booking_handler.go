@@ -67,7 +67,9 @@ func (h *BookingHandler) CreateBooking(c *gin.Context) {
 
 // RescheduleRequest represents the request body for rescheduling
 type RescheduleRequest struct {
-	NewTimeSlotID int `json:"new_time_slot_id" binding:"required"`
+	NewTimeSlotID int      `json:"new_time_slot_id" binding:"required"`
+	CoachID       *int     `json:"coach_id"`
+	TotalPrice    *float64 `json:"total_price"`
 }
 
 // RescheduleBooking handles PUT /api/bookings/:id/reschedule
@@ -91,7 +93,7 @@ func (h *BookingHandler) RescheduleBooking(c *gin.Context) {
 		return
 	}
 
-	err = h.bookingService.RescheduleBooking(id, req.NewTimeSlotID, userID)
+	err = h.bookingService.RescheduleBooking(id, req.NewTimeSlotID, userID, req.CoachID, req.TotalPrice)
 	if err != nil {
 		if err == services.ErrBookingNotFound {
 			c.JSON(http.StatusNotFound, gin.H{"error": "Booking not found"})
@@ -136,6 +138,33 @@ func (h *BookingHandler) CancelBooking(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "Booking cancelled successfully"})
+}
+
+// GetBooking handles GET /api/bookings/:id
+func (h *BookingHandler) GetBooking(c *gin.Context) {
+	id, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid booking ID"})
+		return
+	}
+
+	userID, exists := middleware.GetUserID(c)
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		return
+	}
+
+	booking, err := h.bookingService.GetBooking(id, userID)
+	if err != nil {
+		if err == services.ErrBookingNotFound {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Booking not found"})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, booking)
 }
 
 // GetMyBookings handles GET /api/bookings/my

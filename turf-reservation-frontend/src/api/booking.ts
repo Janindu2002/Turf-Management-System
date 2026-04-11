@@ -38,10 +38,17 @@ export const bookingAPI = {
         const response = await client.get<BookingResponse[]>('/api/bookings/my');
         return response.data;
     },
+    
+    getBooking: async (id: number): Promise<BookingResponse> => {
+        const response = await client.get<BookingResponse>(`/api/bookings/${id}`);
+        return response.data;
+    },
 
-    rescheduleBooking: async (id: number, newTimeSlotID: number): Promise<{ message: string }> => {
+    rescheduleBooking: async (id: number, newTimeSlotID: number, coachId?: number | null, totalPrice?: number): Promise<{ message: string }> => {
         const response = await client.put<{ message: string }>(`/api/bookings/${id}/reschedule`, {
-            new_time_slot_id: newTimeSlotID
+            new_time_slot_id: newTimeSlotID,
+            coach_id: coachId,
+            total_price: totalPrice
         });
         return response.data;
     },

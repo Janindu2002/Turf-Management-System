@@ -76,6 +76,7 @@ func SetupRouter(authHandler *handlers.AuthHandler, availabilityHandler *handler
 			// Booking routes
 			common.POST("/bookings", bookingHandler.CreateBooking)
 			common.GET("/bookings/my", bookingHandler.GetMyBookings)
+			common.GET("/bookings/:id", bookingHandler.GetBooking)
 			common.PUT("/bookings/:id/reschedule", bookingHandler.RescheduleBooking)
 			common.POST("/bookings/:id/cancel", bookingHandler.CancelBooking)
 			common.DELETE("/bookings/:id", bookingHandler.RemoveCancelledBooking)

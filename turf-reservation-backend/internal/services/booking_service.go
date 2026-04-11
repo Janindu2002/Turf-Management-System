@@ -69,7 +69,7 @@ func (s *BookingService) MakeReservation(booking *models.Booking) error {
 }
 
 // RescheduleBooking moves a booking to a new timeslot and resets status to pending
-func (s *BookingService) RescheduleBooking(bookingID int, newTimeSlotID int, userID int) error {
+func (s *BookingService) RescheduleBooking(bookingID int, newTimeSlotID int, userID int, coachID *int, totalPrice *float64) error {
 	// Get existing booking
 	booking, err := s.bookingRepo.GetByID(bookingID)
 	if err != nil {
@@ -93,7 +93,8 @@ func (s *BookingService) RescheduleBooking(bookingID int, newTimeSlotID int, use
 	if newSlot == nil {
 		return errors.New("new timeslot not found")
 	}
-	if newSlot.Status != "available" {
+	// Ensure the slot is available, or it's the player's own current slot
+	if newSlot.Status != "available" && newTimeSlotID != *booking.TimeSlotID {
 		return ErrSlotNotAvailable
 	}
 
@@ -108,6 +109,21 @@ func (s *BookingService) RescheduleBooking(bookingID int, newTimeSlotID int, use
 	// Update booking with new timeslot and reset status to pending
 	*booking.TimeSlotID = newTimeSlotID
 	booking.Status = "pending"
+
+	// Apply new coach and price from request
+	booking.CoachID = coachID
+	if totalPrice != nil {
+		booking.TotalPrice = *totalPrice
+	}
+
+	// Reset approval statuses as it's essentially a new request for a new timeslot
+	booking.AdminApprovalStatus = "pending"
+	if booking.CoachID != nil {
+		booking.CoachApprovalStatus = "pending"
+	} else {
+		booking.CoachApprovalStatus = "none"
+	}
+
 	err = s.bookingRepo.Update(booking)
 	if err != nil {
 		// Rollback old timeslot status if update fails
@@ -273,6 +289,21 @@ func (s *BookingService) CoachRejectBooking(bookingID int, coachID int) error {
 
 	// Free the timeslot
 	return s.timeslotRepo.UpdateStatus(*booking.TimeSlotID, "available")
+}
+
+// GetBooking retrieves a single booking by ID and verifies ownership
+func (s *BookingService) GetBooking(bookingID int, userID int) (*models.Booking, error) {
+	booking, err := s.bookingRepo.GetByID(bookingID)
+	if err != nil {
+		return nil, err
+	}
+	if booking == nil {
+		return nil, ErrBookingNotFound
+	}
+	if *booking.UserID != userID {
+		return nil, errors.New("unauthorized: you can only view your own bookings")
+	}
+	return booking, nil
 }
 
 // GetCoachBookings retrieves all bookings assigned to a coach

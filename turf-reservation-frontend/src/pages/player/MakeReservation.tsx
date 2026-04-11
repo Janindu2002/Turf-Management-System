@@ -46,6 +46,29 @@ export default function MakeReservation() {
     const [submitting, setSubmitting] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
+    // Initial load for rescheduling
+    useEffect(() => {
+        const loadRescheduleData = async () => {
+            if (isRescheduling && rescheduleId) {
+                try {
+                    const booking = await bookingAPI.getBooking(Number(rescheduleId));
+                    if (booking.slot_date) setDate(booking.slot_date);
+                    setSelectedSlotId(booking.time_slot_id);
+                    if (booking.coach_id) {
+                        setNeedsCoach(true);
+                        setSelectedCoachId(booking.coach_id);
+                    }
+                    if (booking.slot_date) {
+                        fetchSlots(booking.slot_date);
+                    }
+                } catch (err) {
+                    console.error("Error loading reschedule data:", err);
+                }
+            }
+        };
+        loadRescheduleData();
+    }, [isRescheduling, rescheduleId]);
+
     /* =======================
        Helpers
     ======================= */
@@ -149,7 +172,12 @@ export default function MakeReservation() {
 
             if (isRescheduling) {
                 // PUT request to reschedule
-                await bookingAPI.rescheduleBooking(Number(rescheduleId), selectedSlotId);
+                await bookingAPI.rescheduleBooking(
+                    Number(rescheduleId), 
+                    selectedSlotId, 
+                    needsCoach ? selectedCoachId : null,
+                    2500 + coachRate
+                );
             } else {
                 // POST request to create the booking
                 await bookingAPI.createBooking({
@@ -281,10 +309,10 @@ export default function MakeReservation() {
 
                             <button
                                 onClick={handleBooking}
-                                disabled={!selectedSlotId || submitting}
+                                disabled={!selectedSlotId || (needsCoach && !selectedCoachId) || submitting}
                                 className={`
                                     w-full mt-6 py-3 rounded-lg font-bold flex items-center justify-center gap-2 transition-all
-                                    ${!selectedSlotId || submitting
+                                    ${!selectedSlotId || (needsCoach && !selectedCoachId) || submitting
                                         ? "bg-gray-300 text-gray-500 cursor-not-allowed"
                                         : "bg-emerald-600 text-white hover:bg-emerald-700 shadow-md hover:shadow-lg scale-100 hover:scale-[1.02]"}
                                 `}
