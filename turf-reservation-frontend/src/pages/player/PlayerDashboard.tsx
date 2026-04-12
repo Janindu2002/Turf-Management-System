@@ -15,7 +15,8 @@ import {
     Loader2,
     User,
     Trophy,
-    CalendarDays
+    CalendarDays,
+    Users2
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { bookingAPI } from "@/api/booking";
@@ -23,6 +24,7 @@ import type { BookingResponse } from "@/api/booking";
 import { eventAPI, type EventResponse } from "@/api/event";
 import { playerAPI, type PlayerProfile } from "@/api/player";
 import { getAllCoaches, type CoachPublicProfile } from "@/api/coach";
+import { teamAPI } from "@/api/team";
 import Section from "@/components/ui/Section";
 import { ROUTES } from "@/constants";
 
@@ -43,6 +45,7 @@ export default function PlayerDashboard() {
     const [togglingAvailability, setTogglingAvailability] = useState(false);
     const [coaches, setCoaches] = useState<CoachPublicProfile[]>([]);
     const [coachesLoading, setCoachesLoading] = useState(true);
+    const [teamsCount, setTeamsCount] = useState<number>(0);
 
     const logout = async () => {
         await handleLogout();
@@ -100,11 +103,22 @@ export default function PlayerDashboard() {
         }
     };
 
+    // Fetch Teams Count
+    const fetchTeamsCount = async () => {
+        try {
+            const data = await teamAPI.getTeams();
+            setTeamsCount(data?.length || 0);
+        } catch (err) {
+            console.error("Failed to fetch teams count:", err);
+        }
+    };
+
     useEffect(() => {
         fetchBookings();
         fetchEvents();
         fetchPlayerProfile();
         fetchCoaches();
+        fetchTeamsCount();
     }, []);
 
     const toggleAvailability = async () => {
@@ -160,15 +174,28 @@ export default function PlayerDashboard() {
         }
     };
 
-    // Handle Remove Event (only for rejected events)
+    // Handle Remove Event (only for rejected/cancelled events)
     const handleRemoveEvent = async (id: number) => {
-        if (!window.confirm("Remove this rejected event request?")) return;
+        if (!window.confirm("Remove this event from your history?")) return;
         try {
             await eventAPI.deleteEvent(id);
             setEvents(prev => prev.filter(e => e.event_id !== id));
         } catch (err) {
             console.error("Failed to remove event:", err);
             alert("Failed to remove event. Please try again.");
+        }
+    };
+
+    // Handle Cancel Event (for pending/approved events)
+    const handleCancelEvent = async (id: number) => {
+        if (!window.confirm("Are you sure you want to cancel this event? Any reserved slots will be released.")) return;
+        try {
+            await eventAPI.cancelEvent(id);
+            // Refresh events
+            fetchEvents();
+        } catch (err) {
+            console.error("Failed to cancel event:", err);
+            alert("Failed to cancel event. Please try again.");
         }
     };
 
@@ -202,7 +229,9 @@ export default function PlayerDashboard() {
                 <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                     <div>
                         <h2 className="text-3xl font-bold text-gray-900">Player Dashboard</h2>
-                        <p className="text-gray-600">Welcome back! Manage your games and teams.</p>
+                        <p className="text-gray-600">
+                            Welcome back{playerProfile?.name ? `, ${playerProfile.name}` : ""}! Manage your games and teams.
+                        </p>
                     </div>
 
                     {/* Primary Action: Make Booking */}
@@ -439,20 +468,32 @@ export default function PlayerDashboard() {
                                             <span className={`px-3 py-1 rounded-full text-xs font-bold capitalize
                                                 ${event.status === 'approved' ? 'bg-green-100 text-green-700' :
                                                     event.status === 'pending' ? 'bg-yellow-100 text-yellow-700' :
-                                                        event.status === 'rejected' ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-700'}
+                                                        event.status === 'rejected' ? 'bg-red-100 text-red-700' :
+                                                            event.status === 'cancelled' ? 'bg-orange-100 text-orange-700' : 'bg-gray-100 text-gray-700'}
                                             `}>
                                                 {event.status}
                                             </span>
 
-                                            {event.status === 'rejected' && (
-                                                <button
-                                                    onClick={() => handleRemoveEvent(event.event_id)}
-                                                    title="Remove event"
-                                                    className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg border border-transparent hover:border-red-100 transition-colors"
-                                                >
-                                                    <Trash2 className="w-4 h-4" />
-                                                </button>
-                                            )}
+                                            <div className="flex gap-2">
+                                                {(event.status === 'approved' || event.status === 'pending') && (
+                                                    <button
+                                                        onClick={() => handleCancelEvent(event.event_id)}
+                                                        title="Cancel Event"
+                                                        className="p-2 text-red-600 hover:bg-red-50 rounded-lg border border-transparent hover:border-red-100 transition-colors"
+                                                    >
+                                                        <XCircle className="w-4 h-4" />
+                                                    </button>
+                                                )}
+                                                {(event.status === 'rejected' || event.status === 'cancelled') && (
+                                                    <button
+                                                        onClick={() => handleRemoveEvent(event.event_id)}
+                                                        title="Remove from history"
+                                                        className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg border border-transparent hover:border-red-100 transition-colors"
+                                                    >
+                                                        <Trash2 className="w-4 h-4" />
+                                                    </button>
+                                                )}
+                                            </div>
                                         </div>
                                     </div>
                                 ))}
@@ -524,16 +565,18 @@ export default function PlayerDashboard() {
                             <div className="bg-white p-6 rounded-xl shadow-sm border h-full flex flex-col justify-between">
                                 <div>
                                     <p className="text-gray-600 text-sm mb-4">
-                                        Browse existing teams or request to join a league.
+                                        Looking for a squad? Discover and join active teams in your community.
                                     </p>
-                                    <div className="flex gap-2">
-                                        <span className="text-xs bg-gray-100 px-2 py-1 rounded text-gray-600">3 Hiring</span>
-                                        <span className="text-xs bg-gray-100 px-2 py-1 rounded text-gray-600">Leagues</span>
+                                    <div className="flex items-center gap-2 mt-2">
+                                        <div className="flex items-center gap-1.5 px-3 py-1 bg-emerald-50 text-emerald-700 rounded-lg border border-emerald-100">
+                                            <Users2 className="w-3.5 h-3.5" />
+                                            <span className="text-xs font-bold">{teamsCount} Teams Available</span>
+                                        </div>
                                     </div>
                                 </div>
                                 <button
                                     onClick={() => navigate(ROUTES.FIND_TEAM)}
-                                    className="mt-4 w-full bg-gray-900 text-white font-bold py-2 rounded-lg hover:bg-gray-800 flex items-center justify-center gap-2"
+                                    className="mt-4 w-full border-2 border-emerald-500 text-emerald-600 font-bold py-2 rounded-lg hover:bg-emerald-50 flex items-center justify-center gap-2 transition-colors"
                                 >
                                     <Search className="w-4 h-4" /> Browse Teams
                                 </button>

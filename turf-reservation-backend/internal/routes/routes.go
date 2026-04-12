@@ -84,6 +84,7 @@ func SetupRouter(authHandler *handlers.AuthHandler, availabilityHandler *handler
 			// Event routes
 			common.POST("/events/host", eventHandler.HostEvent)
 			common.GET("/events/my", eventHandler.GetMyEvents)
+			common.POST("/events/:id/cancel", eventHandler.CancelEvent)
 			common.DELETE("/events/:id", eventHandler.DeleteEvent)
 
 			// Player routes

@@ -226,7 +226,7 @@ func (r *EventRepository) GetByID(id int) (*models.Event, error) {
 func (r *EventRepository) DeleteRejected(eventID int, userID int) error {
 	query := `
 		DELETE FROM events
-		WHERE event_id = $1 AND user_id = $2 AND status = 'rejected'
+		WHERE event_id = $1 AND user_id = $2 AND status IN ('rejected', 'cancelled')
 	`
 	result, err := r.db.Exec(query, eventID, userID)
 	if err != nil {
@@ -234,7 +234,7 @@ func (r *EventRepository) DeleteRejected(eventID int, userID int) error {
 	}
 	rows, _ := result.RowsAffected()
 	if rows == 0 {
-		return fmt.Errorf("event not found or cannot be removed (only rejected events can be removed)")
+		return fmt.Errorf("event not found or cannot be removed (only rejected or cancelled events can be removed)")
 	}
 	return nil
 }

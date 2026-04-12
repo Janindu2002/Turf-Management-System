@@ -15,8 +15,16 @@ export default function CoachSchedule() {
         try {
             setLoading(true);
             const data = await bookingAPI.getCoachRequests();
-            // Show sessions that the coach has approved and are NOT cancelled
-            setSessions(data.filter(b => b.coach_approval_status === "approved" && b.status !== "cancelled"));
+            // Show sessions that the coach has approved and are NOT cancelled, sorted chronologically
+            const filtered = data
+                .filter(b => b.coach_approval_status === "approved" && b.status !== "cancelled")
+                .sort((a, b) => {
+                    // Combine date and time for comparison
+                    const dateTimeA = `${a.slot_date}T${a.start_time}`;
+                    const dateTimeB = `${b.slot_date}T${b.start_time}`;
+                    return dateTimeA.localeCompare(dateTimeB);
+                });
+            setSessions(filtered);
         } catch (err) {
             console.error("Failed to fetch coach schedule:", err);
             setError("Could not load your schedule.");

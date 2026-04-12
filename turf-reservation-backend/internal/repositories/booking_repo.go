@@ -99,7 +99,7 @@ func (r *BookingRepository) ListByUser(userID int) ([]*models.Booking, error) {
 		LEFT JOIN users u ON b.coach_id = u.user_id
 		JOIN turfs t ON ts.turf_id = t.turf_id
 		WHERE b.user_id = $1
-		ORDER BY b.booking_date DESC
+		ORDER BY ts.date ASC, ts.start_time ASC
 	`
 	rows, err := r.db.Query(query, userID)
 	if err != nil {

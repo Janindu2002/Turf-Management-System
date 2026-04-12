@@ -57,7 +57,7 @@ export const eventAPI = {
     },
 
     cancelEvent: async (id: number): Promise<{ message: string }> => {
-        const response = await client.post<{ message: string }>(`/api/admin/events/${id}/cancel`, {});
+        const response = await client.post<{ message: string }>(`/api/events/${id}/cancel`, {});
         return response.data;
     },
 
