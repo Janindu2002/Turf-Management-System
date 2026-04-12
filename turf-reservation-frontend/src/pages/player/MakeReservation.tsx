@@ -98,6 +98,18 @@ export default function MakeReservation() {
         }
     };
 
+    // Helper: Check if slot is blocked by rules (24h lead time)
+    const isSlotBlockedByRules = (slotStartTime: string) => {
+        if (!date) return false;
+        const now = new Date();
+        const [hours, minutes] = slotStartTime.split(":").map(Number);
+        const slotStart = new Date(date + 'T00:00:00');
+        slotStart.setHours(hours, minutes, 0, 0);
+        
+        const twentyFourHoursFromNow = new Date(now.getTime() + 24 * 60 * 1000 * 60);
+        return slotStart < twentyFourHoursFromNow;
+    };
+
     // Handle Date Change
     const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const newDate = e.target.value;
@@ -164,6 +176,13 @@ export default function MakeReservation() {
     // Submit Booking
     const handleBooking = async () => {
         if (!selectedSlotId || !date) return;
+
+        // Final check for past slots
+        const slot = slots.find(s => s.time_slot_id === selectedSlotId);
+        if (slot && isSlotBlockedByRules(slot.start_time)) {
+            setError("Reservations must be made at least 24 hours in advance. Please select a later time.");
+            return;
+        }
 
         setSubmitting(true);
         try {
@@ -240,6 +259,12 @@ export default function MakeReservation() {
                                 <input
                                     type="date"
                                     value={date}
+                                    min={new Date().toISOString().split('T')[0]}
+                                    max={(() => {
+                                        const d = new Date();
+                                        d.setDate(d.getDate() + 7);
+                                        return d.toISOString().split('T')[0];
+                                    })()}
                                     onChange={handleDateChange}
                                     className="w-full pl-10 py-3 border rounded-lg bg-gray-50 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none transition-all"
                                 />
@@ -354,7 +379,8 @@ export default function MakeReservation() {
                                     <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
                                         {slots?.map((slot) => {
                                             const isSelected = selectedSlotId === slot.time_slot_id;
-                                            const isUnavailable = slot.status === "booked" || slot.status === "blocked";
+                                            const isBlocked = isSlotBlockedByRules(slot.start_time);
+                                            const isUnavailable = slot.status === "booked" || slot.status === "blocked" || isBlocked;
 
                                             return (
                                                 <button
@@ -374,8 +400,8 @@ export default function MakeReservation() {
                                                     <Clock className={`w-4 h-4 ${isSelected ? "text-emerald-100" : "text-gray-400"}`} />
                                                     <span className={isUnavailable ? "line-through" : ""}>{formatTime(slot.start_time)}</span>
                                                     {isUnavailable && (
-                                                        <span className="text-[9px] uppercase font-bold text-emerald-600 leading-tight px-1">
-                                                            {slot.status === 'blocked' ? (slot.blocked_reason || "Maintenance") : (slot.blocked_reason || "Reserved")}
+                                                        <span className="text-[9px] uppercase font-bold text-emerald-600 leading-tight px-1 text-center">
+                                                            {isBlocked ? "24h Notice Required" : (slot.status === 'blocked' ? (slot.blocked_reason || "Maintenance") : "Reserved")}
                                                         </span>
                                                     )}
                                                 </button>

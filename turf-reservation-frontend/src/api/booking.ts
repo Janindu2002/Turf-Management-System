@@ -64,6 +64,11 @@ export const bookingAPI = {
         return response.data;
     },
 
+    getAllBookings: async (): Promise<BookingResponse[]> => {
+        const response = await client.get<BookingResponse[]>('/api/admin/bookings');
+        return response.data;
+    },
+
     approveBooking: async (id: number): Promise<{ message: string }> => {
         const response = await client.post<{ message: string }>(`/api/admin/bookings/${id}/approve`, {});
         return response.data;

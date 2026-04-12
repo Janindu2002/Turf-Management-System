@@ -16,7 +16,8 @@ import {
     User,
     Trophy,
     CalendarDays,
-    Users2
+    Users2,
+    History as HistoryIcon
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { bookingAPI } from "@/api/booking";
@@ -199,6 +200,21 @@ export default function PlayerDashboard() {
         }
     };
 
+    // Helper to determine if a booking is in the past
+    const isPastBooking = (booking: BookingResponse) => {
+        if (!booking.slot_date || !booking.end_time) return false;
+        
+        const now = new Date();
+        const [hours, minutes] = booking.end_time.split(":").map(Number);
+        const slotEnd = new Date(booking.slot_date + 'T00:00:00');
+        slotEnd.setHours(hours, minutes, 0, 0);
+        
+        return now > slotEnd;
+    };
+
+    const upcomingBookings = bookings.filter(b => !isPastBooking(b));
+    const pastBookings = bookings.filter(b => isPastBooking(b));
+
     return (
         <div className="min-h-screen bg-gray-50">
 
@@ -244,16 +260,16 @@ export default function PlayerDashboard() {
                 </div>
 
                 {/* My Bookings Section */}
-                <Section title="My Bookings">
+                <Section title="Upcoming Bookings">
                     <div className="bg-white rounded-xl shadow-sm border overflow-hidden">
                         {loading ? (
                             <div className="p-12 flex flex-col items-center justify-center text-gray-500 gap-3">
                                 <Loader2 className="w-8 h-8 animate-spin text-emerald-600" />
                                 <p>Loading your bookings...</p>
                             </div>
-                        ) : bookings && bookings.length > 0 ? (
+                        ) : upcomingBookings && upcomingBookings.length > 0 ? (
                             <div className="divide-y">
-                                {bookings.map((booking) => (
+                                {upcomingBookings.map((booking) => (
                                     <div key={booking.booking_id} className="p-4 flex flex-col md:flex-row md:items-center justify-between gap-4 hover:bg-gray-50 transition-colors">
                                         <div className="flex items-center gap-4">
                                             <div className="bg-emerald-100 p-3 rounded-lg text-emerald-600">
@@ -344,8 +360,68 @@ export default function PlayerDashboard() {
                                 ))}
                             </div>
                         ) : (
-                            <div className="p-8 text-center text-gray-500">
-                                {error || "No active bookings found."}
+                            <div className="p-12 text-center text-gray-400 font-medium bg-gray-50/50">
+                                {error || "No upcoming bookings found."}
+                            </div>
+                        )}
+                    </div>
+                </Section>
+
+                {/* Booking History Section */}
+                <Section title="Booking History">
+                    <div className="bg-white rounded-xl shadow-sm border overflow-hidden">
+                        {loading ? (
+                            <div className="p-8 flex items-center justify-center text-gray-400">
+                                <Loader2 className="w-6 h-6 animate-spin mr-2" /> Loading...
+                            </div>
+                        ) : pastBookings && pastBookings.length > 0 ? (
+                            <div className="divide-y">
+                                {pastBookings.map((booking) => (
+                                    <div key={booking.booking_id} className="p-4 flex flex-col md:flex-row md:items-center justify-between gap-4 grayscale opacity-75 hover:grayscale-0 hover:opacity-100 transition-all">
+                                        <div className="flex items-center gap-4">
+                                            <div className="bg-gray-100 p-3 rounded-lg text-gray-400">
+                                                <HistoryIcon className="w-6 h-6" />
+                                            </div>
+                                            <div>
+                                                <h4 className="font-bold text-gray-700">
+                                                    {booking.slot_date
+                                                        ? new Date(booking.slot_date + 'T00:00:00').toLocaleDateString('en-US', {
+                                                            weekday: 'short',
+                                                            year: 'numeric',
+                                                            month: 'short',
+                                                            day: 'numeric'
+                                                        })
+                                                        : "Past Date"
+                                                    }
+                                                </h4>
+                                                <div className="flex items-center gap-2 text-sm text-gray-400">
+                                                    <Clock className="w-3 h-3" /> {booking.start_time} - {booking.end_time}
+                                                    <span className="w-1 h-1 bg-gray-300 rounded-full"></span>
+                                                    <MapPin className="w-3 h-3" /> Main Turf
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div className="flex items-center gap-3">
+                                            <span className="px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-gray-100 text-gray-500 border">
+                                                Completed
+                                            </span>
+                                            {booking.status === 'cancelled' && (
+                                                <button
+                                                    onClick={() => handleRemove(booking.booking_id)}
+                                                    title="Remove from history"
+                                                    className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                                >
+                                                    <Trash2 className="w-4 h-4" />
+                                                </button>
+                                            )}
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        ) : (
+                            <div className="p-8 text-center text-gray-300 italic text-sm">
+                                Your past games will appear here.
                             </div>
                         )}
                     </div>

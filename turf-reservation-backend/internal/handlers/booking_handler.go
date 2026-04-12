@@ -194,6 +194,17 @@ func (h *BookingHandler) GetPendingBookings(c *gin.Context) {
 	c.JSON(http.StatusOK, bookings)
 }
 
+// GetAllBookings handles GET /api/admin/bookings
+func (h *BookingHandler) GetAllBookings(c *gin.Context) {
+	bookings, err := h.bookingService.GetAllBookings()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch all bookings"})
+		return
+	}
+	c.JSON(http.StatusOK, bookings)
+}
+
+
 // ApproveBooking handles POST /api/admin/bookings/:id/approve
 func (h *BookingHandler) ApproveBooking(c *gin.Context) {
 	id, err := strconv.Atoi(c.Param("id"))

@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"time"
 	"turf-reservation-backend/internal/models"
 	"turf-reservation-backend/internal/repositories"
 )
@@ -38,6 +39,19 @@ func (s *BookingService) MakeReservation(booking *models.Booking) error {
 	}
 	if slot.Status != "available" {
 		return ErrSlotNotAvailable
+	}
+
+	// Rule 1: 24-Hour Lead Time
+	if time.Until(slot.StartTime) < 24*time.Hour {
+		return errors.New("reservations must be made at least 24 hours in advance")
+	}
+
+	// Rule 2: 7-Day Booking Window
+	y, m, d := time.Now().Date()
+	todayStart := time.Date(y, m, d, 0, 0, 0, 0, time.Now().Location())
+	maxWindow := todayStart.AddDate(0, 0, 8) // Start of 8th day from today
+	if !slot.StartTime.Before(maxWindow) {
+		return errors.New("reservations can only be made for the upcoming 7 days")
 	}
 
 	// Set initial approval statuses
@@ -96,6 +110,19 @@ func (s *BookingService) RescheduleBooking(bookingID int, newTimeSlotID int, use
 	// Ensure the slot is available, or it's the player's own current slot
 	if newSlot.Status != "available" && newTimeSlotID != *booking.TimeSlotID {
 		return ErrSlotNotAvailable
+	}
+
+	// Rule 1: 24-Hour Lead Time
+	if time.Until(newSlot.StartTime) < 24*time.Hour {
+		return errors.New("rescheduling requires at least 24 hours advance notice from the new start time")
+	}
+
+	// Rule 2: 7-Day Booking Window
+	y, m, d := time.Now().Date()
+	todayStart := time.Date(y, m, d, 0, 0, 0, 0, time.Now().Location())
+	maxWindow := todayStart.AddDate(0, 0, 8)
+	if !newSlot.StartTime.Before(maxWindow) {
+		return errors.New("rescheduling can only be done within the upcoming 7 days")
 	}
 
 	oldTimeSlotID := *booking.TimeSlotID
@@ -310,3 +337,9 @@ func (s *BookingService) GetBooking(bookingID int, userID int) (*models.Booking,
 func (s *BookingService) GetCoachBookings(coachID int) ([]*models.Booking, error) {
 	return s.bookingRepo.ListByCoach(coachID)
 }
+
+// GetAllBookings retrieves all bookings from the system (Admin only)
+func (s *BookingService) GetAllBookings() ([]*models.Booking, error) {
+	return s.bookingRepo.ListAll()
+}
+

@@ -284,3 +284,59 @@ func (r *BookingRepository) ListByCoach(coachID int) ([]*models.Booking, error) 
 	}
 	return bookings, nil
 }
+
+// ListAll retrieves all bookings from the system (Admin only)
+func (r *BookingRepository) ListAll() ([]*models.Booking, error) {
+	query := `
+		SELECT b.booking_id, b.user_id, b.time_slot_id, b.coach_id, b.event_id, b.booking_date, b.status, 
+		       b.coach_approval_status, b.admin_approval_status, b.total_price, b.payment_status,
+		       TO_CHAR(ts.date, 'YYYY-MM-DD'), TO_CHAR(ts.start_time, 'HH24:MI'), TO_CHAR(ts.end_time, 'HH24:MI'),
+		       u.name as player_name, u.email as player_email, t.name as turf_name, c.name as coach_name
+		FROM bookings b
+		JOIN time_slots ts ON b.time_slot_id = ts.time_slot_id
+		JOIN users u ON b.user_id = u.user_id
+		JOIN turfs t ON ts.turf_id = t.turf_id
+		LEFT JOIN users c ON b.coach_id = c.user_id
+		ORDER BY ts.date DESC, ts.start_time DESC
+	`
+	rows, err := r.db.Query(query)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list all bookings: %w", err)
+	}
+	defer rows.Close()
+
+	var bookings = []*models.Booking{}
+	for rows.Next() {
+		b := &models.Booking{}
+		var coachName sql.NullString
+		err := rows.Scan(
+			&b.BookingID,
+			&b.UserID,
+			&b.TimeSlotID,
+			&b.CoachID,
+			&b.EventID,
+			&b.BookingDate,
+			&b.Status,
+			&b.CoachApprovalStatus,
+			&b.AdminApprovalStatus,
+			&b.TotalPrice,
+			&b.PaymentStatus,
+			&b.SlotDate,
+			&b.StartTime,
+			&b.EndTime,
+			&b.PlayerName,
+			&b.PlayerEmail,
+			&b.TurfName,
+			&coachName,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan booking: %w", err)
+		}
+		if coachName.Valid {
+			b.CoachName = coachName.String
+		}
+		bookings = append(bookings, b)
+	}
+	return bookings, nil
+}
+

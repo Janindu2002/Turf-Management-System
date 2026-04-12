@@ -10,13 +10,17 @@ import {
     CheckSquare,
     CalendarX,
     Clock,
-    Loader2
+    Loader2,
+    Database,
+    CheckCircle2,
+    XCircle as XIcon
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import Section from "@/components/ui/Section";
 import { ROUTES } from "@/constants";
 import logo from "@/assets/logo.jpeg";
 import { availabilityAPI } from "@/api/availability";
+import { bookingAPI, type BookingResponse } from "@/api/booking";
 import type { Timeslot } from "@/types";
 
 export default function AdminDashboard() {
@@ -28,6 +32,10 @@ export default function AdminDashboard() {
     const [slots, setSlots] = useState<Timeslot[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+
+    // All Bookings State
+    const [allBookings, setAllBookings] = useState<BookingResponse[]>([]);
+    const [loadingAll, setLoadingAll] = useState(true);
 
     const fetchSchedule = async (date: string) => {
         try {
@@ -46,6 +54,22 @@ export default function AdminDashboard() {
     useEffect(() => {
         fetchSchedule(selectedDate);
     }, [selectedDate]);
+
+    const fetchAllBookings = async () => {
+        try {
+            setLoadingAll(true);
+            const data = await bookingAPI.getAllBookings();
+            setAllBookings(data || []);
+        } catch (err) {
+            console.error("Failed to fetch all bookings:", err);
+        } finally {
+            setLoadingAll(false);
+        }
+    };
+
+    useEffect(() => {
+        fetchAllBookings();
+    }, []);
 
     const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         setSelectedDate(e.target.value);
@@ -159,6 +183,93 @@ export default function AdminDashboard() {
                         )}
                     </div>
                 </Section>
+
+                {/* Centralized Reservation Record */}
+                <Section title="Centralized Reservation Record">
+                    <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden mt-3">
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-left border-collapse">
+                                <thead className="bg-gray-50 border-b border-gray-100">
+                                    <tr>
+                                        <th className="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-wider">Date & Time</th>
+                                        <th className="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-wider">Player</th>
+                                        <th className="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-wider">Coach</th>
+                                        <th className="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-wider">Status</th>
+                                        <th className="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-wider">Price</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-gray-50">
+                                    {loadingAll ? (
+                                        <tr>
+                                            <td colSpan={5} className="px-6 py-12 text-center text-gray-400">
+                                                <Loader2 className="w-6 h-6 animate-spin mx-auto mb-2 text-purple-600" />
+                                                <p className="text-xs">Fetching records...</p>
+                                            </td>
+                                        </tr>
+                                    ) : allBookings.length > 0 ? (
+                                        allBookings.map((booking) => (
+                                            <tr key={booking.booking_id} className="hover:bg-gray-50/50 transition-colors">
+                                                <td className="px-6 py-4 whitespace-nowrap">
+                                                    <div className="flex flex-col">
+                                                        <span className="text-sm font-bold text-gray-900">
+                                                            {booking.slot_date ? new Date(booking.slot_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : "--"}
+                                                        </span>
+                                                        <span className="text-xs text-gray-500 font-medium">
+                                                            {booking.start_time} - {booking.end_time}
+                                                        </span>
+                                                    </div>
+                                                </td>
+                                                <td className="px-6 py-4 whitespace-nowrap">
+                                                    <div className="flex flex-col">
+                                                        <span className="text-sm font-bold text-gray-900">{booking.player_name || "Guest Player"}</span>
+                                                        <span className="text-[10px] text-gray-400 font-medium uppercase">{booking.player_email || "No email"}</span>
+                                                    </div>
+                                                </td>
+                                                <td className="px-6 py-4 whitespace-nowrap">
+                                                    {booking.coach_name ? (
+                                                        <div className="flex items-center gap-2">
+                                                            <div className="w-6 h-6 rounded-full bg-purple-100 flex items-center justify-center text-[10px] font-bold text-purple-600">
+                                                                {booking.coach_name.charAt(0)}
+                                                            </div>
+                                                            <span className="text-sm font-medium text-gray-700">{booking.coach_name}</span>
+                                                        </div>
+                                                    ) : (
+                                                        <span className="text-xs text-gray-400">Turf Only</span>
+                                                    )}
+                                                </td>
+                                                <td className="px-6 py-4 whitespace-nowrap">
+                                                    <div className="flex items-center gap-2">
+                                                        {booking.status === 'confirmed' && <CheckCircle2 className="w-4 h-4 text-green-500" />}
+                                                        {booking.status === 'pending' && <Clock className="w-4 h-4 text-amber-500" />}
+                                                        {booking.status === 'cancelled' && <XIcon className="w-4 h-4 text-red-500" />}
+                                                        <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded ${
+                                                            booking.status === 'confirmed' ? 'bg-green-100 text-green-700' :
+                                                            booking.status === 'pending' ? 'bg-amber-100 text-amber-700' :
+                                                            'bg-red-100 text-red-700'
+                                                        }`}>
+                                                            {booking.status}
+                                                        </span>
+                                                    </div>
+                                                </td>
+                                                <td className="px-6 py-4 whitespace-nowrap">
+                                                    <span className="text-sm font-bold text-gray-900">LKR {booking.total_price?.toLocaleString()}</span>
+                                                </td>
+                                            </tr>
+                                        ))
+                                    ) : (
+                                        <tr>
+                                            <td colSpan={5} className="px-6 py-12 text-center text-gray-400">
+                                                <Database className="w-10 h-10 mx-auto mb-3 opacity-10" />
+                                                <p className="text-sm font-medium">No reservation records found.</p>
+                                            </td>
+                                        </tr>
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </Section>
+
 
                 {/* Group 1: User Management */}
                 <Section title="User Management">

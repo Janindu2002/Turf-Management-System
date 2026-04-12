@@ -106,6 +106,7 @@ func SetupRouter(authHandler *handlers.AuthHandler, availabilityHandler *handler
 		{
 			// Booking Management
 			admin.GET("/bookings/pending", bookingHandler.GetPendingBookings)
+			admin.GET("/bookings", bookingHandler.GetAllBookings)
 			admin.POST("/bookings/:id/approve", bookingHandler.ApproveBooking)
 			admin.POST("/bookings/:id/reject", bookingHandler.RejectBooking)
 			// Event Management
