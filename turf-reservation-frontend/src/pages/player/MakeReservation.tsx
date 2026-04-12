@@ -195,13 +195,13 @@ export default function MakeReservation() {
                     Number(rescheduleId), 
                     selectedSlotId, 
                     needsCoach ? selectedCoachId : null,
-                    2500 + coachRate
+                    12500 + coachRate
                 );
             } else {
                 // POST request to create the booking
                 await bookingAPI.createBooking({
                     time_slot_id: selectedSlotId,
-                    total_price: 2500 + coachRate,
+                    total_price: 12500 + coachRate,
                     coach_id: needsCoach ? selectedCoachId : null,
                 });
             }
@@ -327,7 +327,7 @@ export default function MakeReservation() {
                                 <div className="flex justify-between border-t border-emerald-200 pt-3 mt-3">
                                     <span className="font-bold text-emerald-900">Total:</span>
                                     <span className="font-bold text-emerald-900 text-lg">
-                                        LKR {(2500 + (needsCoach && selectedCoachId ? (availableCoaches.find(c => c.user_id === selectedCoachId)?.hourly_rate || 0) : 0)).toLocaleString()}
+                                        LKR {(12500 + (needsCoach && selectedCoachId ? (availableCoaches.find(c => c.user_id === selectedCoachId)?.hourly_rate || 0) : 0)).toLocaleString()}
                                     </span>
                                 </div>
                             </div>

@@ -10,7 +10,7 @@ import (
 )
 
 // SetupRouter configures all application routes
-func SetupRouter(authHandler *handlers.AuthHandler, availabilityHandler *handlers.AvailabilityHandler, bookingHandler *handlers.BookingHandler, eventHandler *handlers.EventHandler, playerHandler *handlers.PlayerHandler, teamHandler *handlers.TeamHandler, coachHandler *handlers.CoachHandler, cfg *config.Config) *gin.Engine {
+func SetupRouter(authHandler *handlers.AuthHandler, availabilityHandler *handlers.AvailabilityHandler, bookingHandler *handlers.BookingHandler, eventHandler *handlers.EventHandler, playerHandler *handlers.PlayerHandler, teamHandler *handlers.TeamHandler, coachHandler *handlers.CoachHandler, reportHandler *handlers.ReportHandler, cfg *config.Config) *gin.Engine {
 	// Set Gin mode based on environment
 	if cfg.AppEnv == "production" {
 		gin.SetMode(gin.ReleaseMode)
@@ -136,6 +136,10 @@ func SetupRouter(authHandler *handlers.AuthHandler, availabilityHandler *handler
 			// Coach Management (Admin)
 			admin.GET("/coaches", coachHandler.GetAllCoachesAdmin)
 			admin.DELETE("/coaches/:id", coachHandler.DeleteCoach)
+
+			// Reports & Analytics
+			admin.GET("/reports/stats", reportHandler.GetDashboardStats)
+			admin.GET("/reports/download", reportHandler.DownloadReport)
 		}
 
 		// Coach routes

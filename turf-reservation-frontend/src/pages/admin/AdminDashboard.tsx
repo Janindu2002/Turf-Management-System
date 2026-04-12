@@ -13,7 +13,13 @@ import {
     Loader2,
     Database,
     CheckCircle2,
-    XCircle as XIcon
+    XCircle as XIcon,
+    Search,
+    Menu,
+    X,
+    BarChart3,
+    Wrench,
+    LayoutDashboard
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import Section from "@/components/ui/Section";
@@ -33,9 +39,41 @@ export default function AdminDashboard() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
-    // All Bookings State
+    // UI State
     const [allBookings, setAllBookings] = useState<BookingResponse[]>([]);
     const [loadingAll, setLoadingAll] = useState(true);
+    const [searchTerm, setSearchTerm] = useState("");
+    const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+
+    const menuItems = [
+        { id: "overview", label: "Overview", icon: LayoutDashboard },
+        { id: "schedule", label: "Daily Schedule", icon: Calendar },
+        { id: "records", label: "Reservation Record", icon: Database },
+        { id: "users", label: "User Management", icon: Users },
+        { id: "operations", label: "Turf Operations", icon: Wrench },
+        { id: "analytics", label: "Reports & Analytics", icon: BarChart3 },
+    ];
+
+    const scrollToSection = (id: string) => {
+        const element = document.getElementById(id);
+        if (element) {
+            const headerOffset = 80;
+            const elementPosition = element.getBoundingClientRect().top;
+            const offsetPosition = elementPosition + window.pageYOffset - headerOffset;
+
+            window.scrollTo({
+                top: offsetPosition,
+                behavior: "smooth"
+            });
+        }
+        setIsSidebarOpen(false);
+    };
+
+    const filteredBookings = allBookings.filter(booking => 
+        booking.player_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        booking.player_email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        booking.slot_date?.toLowerCase().includes(searchTerm.toLowerCase())
+    );
 
     const fetchSchedule = async (date: string) => {
         try {
@@ -90,15 +128,21 @@ export default function AdminDashboard() {
         <div className="min-h-screen bg-gray-50">
 
             {/* Header */}
-            <header className="bg-white border-b shadow-sm sticky top-0 z-10">
-                <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
+            <header className="bg-white border-b shadow-sm sticky top-0 z-30">
+                <div className="max-w-[1600px] mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
                     <div className="flex items-center gap-3">
+                        <button 
+                            onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+                            className="p-2 -ml-2 lg:hidden text-gray-600 hover:bg-gray-100 rounded-lg"
+                        >
+                            {isSidebarOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+                        </button>
                         <img
                             src={logo}
                             alt="Astro Turf Logo"
                             className="h-10 w-10 object-contain"
                         />
-                        <h1 className="text-xl font-bold">Astro Turf</h1>
+                        <h1 className="text-xl font-bold hidden sm:block">Astro Turf</h1>
                         <span className="px-3 py-1 bg-purple-100 text-purple-700 text-xs rounded-full font-semibold">
                             Admin
                         </span>
@@ -107,14 +151,42 @@ export default function AdminDashboard() {
                         onClick={logout}
                         className="flex items-center gap-2 text-red-600 font-semibold hover:bg-red-50 px-3 py-2 rounded-lg transition-colors"
                     >
-                        <LogOut className="w-4 h-4" /> Logout
+                        <LogOut className="w-4 h-4" /> <span className="hidden sm:inline">Logout</span>
                     </button>
                 </div>
             </header>
 
-            {/* Content */}
-            <main className="max-w-7xl mx-auto px-6 py-10 space-y-10">
-                <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+            <div className="max-w-[1600px] mx-auto flex">
+                {/* Sidebar Navigation */}
+                <aside className={`
+                    fixed lg:sticky top-16 z-20 w-64 h-[calc(100vh-64px)] bg-white border-r transition-transform duration-300
+                    ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
+                `}>
+                    <nav className="p-4 space-y-2">
+                        {menuItems.map((item) => (
+                            <button
+                                key={item.id}
+                                onClick={() => scrollToSection(item.id)}
+                                className="w-full flex items-center gap-3 px-4 py-3 text-sm font-semibold text-gray-600 hover:bg-purple-50 hover:text-purple-700 rounded-xl transition-all group"
+                            >
+                                <item.icon className="w-5 h-5 group-hover:scale-110 transition-transform" />
+                                {item.label}
+                            </button>
+                        ))}
+                    </nav>
+                </aside>
+
+                {/* Mobile Overlay */}
+                {isSidebarOpen && (
+                    <div 
+                        className="fixed inset-0 bg-black/20 z-10 lg:hidden"
+                        onClick={() => setIsSidebarOpen(false)}
+                    />
+                )}
+
+                {/* Content */}
+                <main className="flex-1 px-4 sm:px-8 py-10 space-y-12 overflow-hidden" id="overview">
+                    <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
                     <div>
                         <h2 className="text-3xl font-bold text-gray-900">Admin Dashboard</h2>
                         <p className="text-gray-600">Overview of turf operations and user management.</p>
@@ -140,7 +212,8 @@ export default function AdminDashboard() {
                     </div>
                 </div>
 
-                <Section title={`${selectedDate === new Date().toISOString().split('T')[0] ? "Today's" : "Daily"} Schedule`}>
+                <div id="schedule">
+                    <Section title={`${selectedDate === new Date().toISOString().split('T')[0] ? "Today's" : "Daily"} Schedule`}>
                     <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden mt-3">
                         {loading ? (
                             <div className="p-12 flex flex-col items-center justify-center text-gray-500 gap-3">
@@ -183,9 +256,23 @@ export default function AdminDashboard() {
                         )}
                     </div>
                 </Section>
+                </div>
 
                 {/* Centralized Reservation Record */}
+                <div id="records">
                 <Section title="Centralized Reservation Record">
+                    <div className="flex flex-col md:flex-row justify-end mb-4">
+                        <div className="relative w-full md:w-64">
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                            <input
+                                type="text"
+                                placeholder="Search by player, email or date..."
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                                className="w-full pl-10 pr-4 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none transition-all shadow-sm"
+                            />
+                        </div>
+                    </div>
                     <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden mt-3">
                         <div className="overflow-x-auto">
                             <table className="w-full text-left border-collapse">
@@ -206,8 +293,8 @@ export default function AdminDashboard() {
                                                 <p className="text-xs">Fetching records...</p>
                                             </td>
                                         </tr>
-                                    ) : allBookings.length > 0 ? (
-                                        allBookings.map((booking) => (
+                                    ) : filteredBookings.length > 0 ? (
+                                        filteredBookings.map((booking) => (
                                             <tr key={booking.booking_id} className="hover:bg-gray-50/50 transition-colors">
                                                 <td className="px-6 py-4 whitespace-nowrap">
                                                     <div className="flex flex-col">
@@ -260,7 +347,9 @@ export default function AdminDashboard() {
                                         <tr>
                                             <td colSpan={5} className="px-6 py-12 text-center text-gray-400">
                                                 <Database className="w-10 h-10 mx-auto mb-3 opacity-10" />
-                                                <p className="text-sm font-medium">No reservation records found.</p>
+                                                <p className="text-sm font-medium">
+                                                    {searchTerm ? `No results found for "${searchTerm}"` : "No reservation records found."}
+                                                </p>
                                             </td>
                                         </tr>
                                     )}
@@ -269,9 +358,11 @@ export default function AdminDashboard() {
                         </div>
                     </div>
                 </Section>
+                </div>
 
 
                 {/* Group 1: User Management */}
+                <div id="users">
                 <Section title="User Management">
                     <div className="grid md:grid-cols-3 gap-6 mt-4">
                         {/* Player Database */}
@@ -317,8 +408,10 @@ export default function AdminDashboard() {
                         </div>
                     </div>
                 </Section>
+                </div>
 
                 {/* Group 2: Operations */}
+                <div id="operations">
                 <Section title="Turf Operations">
                     <div className="grid md:grid-cols-3 gap-6 mt-4">
                         {/* Booking Approvals */}
@@ -350,8 +443,10 @@ export default function AdminDashboard() {
                         </div>
                     </div>
                 </Section>
+                </div>
 
                 {/* Group 3: Analytics */}
+                <div id="analytics">
                 <Section title="Reports & Analytics">
                     <div className="bg-gradient-to-r from-purple-900 to-indigo-900 rounded-2xl p-8 text-white flex flex-col md:flex-row items-center justify-between gap-6 mt-4 shadow-lg">
                         <div>
@@ -368,7 +463,9 @@ export default function AdminDashboard() {
                         </button>
                     </div>
                 </Section>
+                </div>
             </main>
         </div>
-    );
+    </div>
+);
 }

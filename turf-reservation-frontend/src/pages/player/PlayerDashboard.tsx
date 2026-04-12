@@ -17,7 +17,10 @@ import {
     Trophy,
     CalendarDays,
     Users2,
-    History as HistoryIcon
+    History as HistoryIcon,
+    Menu,
+    X,
+    LayoutDashboard
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { bookingAPI } from "@/api/booking";
@@ -47,6 +50,31 @@ export default function PlayerDashboard() {
     const [coaches, setCoaches] = useState<CoachPublicProfile[]>([]);
     const [coachesLoading, setCoachesLoading] = useState(true);
     const [teamsCount, setTeamsCount] = useState<number>(0);
+    const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+
+    const menuItems = [
+        { id: "overview", label: "Overview", icon: LayoutDashboard },
+        { id: "upcoming", label: "Upcoming Bookings", icon: Calendar },
+        { id: "history", label: "Booking History", icon: HistoryIcon },
+        { id: "coaches", label: "Available Coaches", icon: User },
+        { id: "events", label: "My Hosted Events", icon: Trophy },
+        { id: "community", label: "Community & Squads", icon: Users2 },
+    ];
+
+    const scrollToSection = (id: string) => {
+        const element = document.getElementById(id);
+        if (element) {
+            const headerOffset = 80;
+            const elementPosition = element.getBoundingClientRect().top;
+            const offsetPosition = elementPosition + window.pageYOffset - headerOffset;
+
+            window.scrollTo({
+                top: offsetPosition,
+                behavior: "smooth"
+            });
+        }
+        setIsSidebarOpen(false);
+    };
 
     const logout = async () => {
         await handleLogout();
@@ -219,15 +247,21 @@ export default function PlayerDashboard() {
         <div className="min-h-screen bg-gray-50">
 
             {/* Header */}
-            <header className="bg-white border-b shadow-sm sticky top-0 z-10">
-                <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
+            <header className="bg-white border-b shadow-sm sticky top-0 z-30">
+                <div className="max-w-[1600px] mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
                     <div className="flex items-center gap-3">
+                        <button 
+                            onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+                            className="p-2 -ml-2 lg:hidden text-gray-600 hover:bg-gray-100 rounded-lg"
+                        >
+                            {isSidebarOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+                        </button>
                         <img
                             src={logo}
                             alt="Astro Turf Logo"
                             className="h-10 w-10 object-contain"
                         />
-                        <h1 className="text-xl font-bold">Astro Turf</h1>
+                        <h1 className="text-xl font-bold hidden sm:block">Astro Turf</h1>
                         <span className="px-3 py-1 bg-emerald-100 text-emerald-700 text-xs rounded-full font-semibold">
                             Player
                         </span>
@@ -236,433 +270,472 @@ export default function PlayerDashboard() {
                         onClick={logout}
                         className="flex items-center gap-2 text-red-600 font-semibold hover:bg-red-50 px-3 py-2 rounded-lg transition-colors"
                     >
-                        <LogOut className="w-4 h-4" /> Logout
+                        <LogOut className="w-4 h-4" /> <span className="hidden sm:inline">Logout</span>
                     </button>
                 </div>
             </header>
 
-            <main className="max-w-7xl mx-auto px-6 py-10 space-y-8">
-                <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                    <div>
-                        <h2 className="text-3xl font-bold text-gray-900">Player Dashboard</h2>
-                        <p className="text-gray-600">
-                            Welcome back{playerProfile?.name ? `, ${playerProfile.name}` : ""}! Manage your games and teams.
-                        </p>
-                    </div>
-
-                    {/* Primary Action: Make Booking */}
-                    <button
-                        onClick={() => navigate(ROUTES.MAKE_RESERVATION)}
-                        className="bg-emerald-600 text-white px-6 py-3 rounded-xl font-bold flex items-center gap-2 shadow-lg hover:bg-emerald-700 transition-all hover:scale-105"
-                    >
-                        <Plus className="w-5 h-5" /> Make New Reservation
-                    </button>
-                </div>
-
-                {/* My Bookings Section */}
-                <Section title="Upcoming Bookings">
-                    <div className="bg-white rounded-xl shadow-sm border overflow-hidden">
-                        {loading ? (
-                            <div className="p-12 flex flex-col items-center justify-center text-gray-500 gap-3">
-                                <Loader2 className="w-8 h-8 animate-spin text-emerald-600" />
-                                <p>Loading your bookings...</p>
-                            </div>
-                        ) : upcomingBookings && upcomingBookings.length > 0 ? (
-                            <div className="divide-y">
-                                {upcomingBookings.map((booking) => (
-                                    <div key={booking.booking_id} className="p-4 flex flex-col md:flex-row md:items-center justify-between gap-4 hover:bg-gray-50 transition-colors">
-                                        <div className="flex items-center gap-4">
-                                            <div className="bg-emerald-100 p-3 rounded-lg text-emerald-600">
-                                                <Calendar className="w-6 h-6" />
-                                            </div>
-                                            <div>
-                                                <h4 className="font-bold text-gray-900">
-                                                    {booking.slot_date
-                                                        ? new Date(booking.slot_date + 'T00:00:00').toLocaleDateString('en-US', {
-                                                            weekday: 'short',
-                                                            year: 'numeric',
-                                                            month: 'short',
-                                                            day: 'numeric'
-                                                        })
-                                                        : new Date(booking.booking_date).toLocaleDateString('en-US', {
-                                                            timeZone: 'UTC',
-                                                            weekday: 'short',
-                                                            year: 'numeric',
-                                                            month: 'short',
-                                                            day: 'numeric'
-                                                        })
-                                                    }
-                                                </h4>
-                                                <div className="flex items-center gap-2 text-sm text-gray-500">
-                                                    <Clock className="w-3 h-3" />
-                                                    {booking.start_time && booking.end_time
-                                                        ? `${booking.start_time} - ${booking.end_time}`
-                                                        : `Slot #${booking.time_slot_id}`}
-                                                    <span className="w-1 h-1 bg-gray-300 rounded-full"></span>
-                                                    <MapPin className="w-3 h-3" /> Main Turf
-                                                </div>
-                                                {booking.coach_id && (
-                                                    <div className="mt-2 flex items-center gap-2">
-                                                        <div className="flex items-center gap-1.5 px-2 py-0.5 bg-blue-50 text-blue-600 rounded text-[11px] font-bold border border-blue-100">
-                                                            Coach: {booking.coach_name || "Assigned"}
-                                                        </div>
-                                                        <span className={`text-[10px] font-bold uppercase tracking-wide
-                                                            ${booking.coach_approval_status === 'approved' ? 'text-green-600' :
-                                                                booking.coach_approval_status === 'rejected' ? 'text-red-600' : 'text-yellow-600'}
-                                                        `}>
-                                                            {booking.coach_approval_status === 'pending' ? '• Waiting for Approval' : `• Request ${booking.coach_approval_status}`}
-                                                        </span>
-                                                    </div>
-                                                )}
-                                            </div>
-                                        </div>
-
-                                        <div className="flex items-center gap-3">
-                                            <span className={`px-3 py-1 rounded-full text-xs font-bold capitalize
-                                                ${booking.status === 'confirmed' ? 'bg-green-100 text-green-700' :
-                                                    booking.status === 'pending' ? 'bg-yellow-100 text-yellow-700' :
-                                                        booking.status === 'cancelled' ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-700'}
-                                            `}>
-                                                {booking.status}
-                                            </span>
-
-                                            <div className="flex gap-2">
-                                                {(booking.status === 'confirmed' || booking.status === 'pending') && (
-                                                    <>
-                                                        <button
-                                                            onClick={() => navigate(`${ROUTES.MAKE_RESERVATION}?reschedule=${booking.booking_id}`)}
-                                                            title="Reschedule"
-                                                            className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg border border-transparent hover:border-blue-100"
-                                                        >
-                                                            <RefreshCw className="w-4 h-4" />
-                                                        </button>
-                                                        <button
-                                                            onClick={() => handleCancel(booking.booking_id)}
-                                                            title="Cancel Booking"
-                                                            className="p-2 text-red-600 hover:bg-red-50 rounded-lg border border-transparent hover:border-red-100"
-                                                        >
-                                                            <XCircle className="w-4 h-4" />
-                                                        </button>
-                                                    </>
-                                                )}
-                                                {booking.status === 'cancelled' && (
-                                                    <button
-                                                        onClick={() => handleRemove(booking.booking_id)}
-                                                        title="Remove from history"
-                                                        className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg border border-transparent hover:border-red-100"
-                                                    >
-                                                        <Trash2 className="w-4 h-4" />
-                                                    </button>
-                                                )}
-                                            </div>
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        ) : (
-                            <div className="p-12 text-center text-gray-400 font-medium bg-gray-50/50">
-                                {error || "No upcoming bookings found."}
-                            </div>
-                        )}
-                    </div>
-                </Section>
-
-                {/* Booking History Section */}
-                <Section title="Booking History">
-                    <div className="bg-white rounded-xl shadow-sm border overflow-hidden">
-                        {loading ? (
-                            <div className="p-8 flex items-center justify-center text-gray-400">
-                                <Loader2 className="w-6 h-6 animate-spin mr-2" /> Loading...
-                            </div>
-                        ) : pastBookings && pastBookings.length > 0 ? (
-                            <div className="divide-y">
-                                {pastBookings.map((booking) => (
-                                    <div key={booking.booking_id} className="p-4 flex flex-col md:flex-row md:items-center justify-between gap-4 grayscale opacity-75 hover:grayscale-0 hover:opacity-100 transition-all">
-                                        <div className="flex items-center gap-4">
-                                            <div className="bg-gray-100 p-3 rounded-lg text-gray-400">
-                                                <HistoryIcon className="w-6 h-6" />
-                                            </div>
-                                            <div>
-                                                <h4 className="font-bold text-gray-700">
-                                                    {booking.slot_date
-                                                        ? new Date(booking.slot_date + 'T00:00:00').toLocaleDateString('en-US', {
-                                                            weekday: 'short',
-                                                            year: 'numeric',
-                                                            month: 'short',
-                                                            day: 'numeric'
-                                                        })
-                                                        : "Past Date"
-                                                    }
-                                                </h4>
-                                                <div className="flex items-center gap-2 text-sm text-gray-400">
-                                                    <Clock className="w-3 h-3" /> {booking.start_time} - {booking.end_time}
-                                                    <span className="w-1 h-1 bg-gray-300 rounded-full"></span>
-                                                    <MapPin className="w-3 h-3" /> Main Turf
-                                                </div>
-                                            </div>
-                                        </div>
-
-                                        <div className="flex items-center gap-3">
-                                            <span className="px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-gray-100 text-gray-500 border">
-                                                Completed
-                                            </span>
-                                            {booking.status === 'cancelled' && (
-                                                <button
-                                                    onClick={() => handleRemove(booking.booking_id)}
-                                                    title="Remove from history"
-                                                    className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                                                >
-                                                    <Trash2 className="w-4 h-4" />
-                                                </button>
-                                            )}
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        ) : (
-                            <div className="p-8 text-center text-gray-300 italic text-sm">
-                                Your past games will appear here.
-                            </div>
-                        )}
-                    </div>
-                </Section>
-
-                {/* Coach Booking Section */}
-                <Section title="Available Coaches">
-                    <div className="bg-white rounded-xl shadow-sm border overflow-hidden">
-                        {coachesLoading ? (
-                            <div className="p-12 flex flex-col items-center justify-center text-gray-500 gap-3">
-                                <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
-                                <p>Loading coaches...</p>
-                            </div>
-                        ) : coaches.length === 0 ? (
-                            <div className="p-8 flex flex-col items-center justify-center text-center gap-3">
-                                <div className="bg-blue-50 p-4 rounded-full">
-                                    <User className="w-8 h-8 text-blue-400" />
-                                </div>
-                                <p className="font-semibold text-gray-600">No coaches available yet.</p>
-                                <p className="text-sm text-gray-400 max-w-sm">
-                                    Coaches who set up their availability will appear here.
-                                </p>
-                            </div>
-                        ) : (
-                            <div className="divide-y">
-                                {coaches.map((coach) => {
-                                    const [daysPart = "", hoursPart = ""] = coach.availability.split("|");
-                                    const days = daysPart ? daysPart.split(",").filter(Boolean) : [];
-                                    const [startTime, endTime] = hoursPart ? hoursPart.split("-") : ["", ""];
-
-                                    return (
-                                        <div key={coach.user_id} className="p-5 flex flex-col md:flex-row md:items-center justify-between gap-4 hover:bg-gray-50 transition-colors">
-                                            <div className="flex items-center gap-4">
-                                                <div className="bg-blue-100 p-3 rounded-xl text-blue-600">
-                                                    <User className="w-6 h-6" />
-                                                </div>
-                                                <div>
-                                                    <h4 className="font-bold text-gray-900">{coach.name}</h4>
-                                                    {coach.specialization && (
-                                                        <p className="text-sm text-blue-600 font-medium">{coach.specialization}</p>
-                                                    )}
-                                                    <div className="flex flex-wrap items-center gap-2 mt-1">
-                                                        {days.length > 0 && (
-                                                            <div className="flex gap-1">
-                                                                {days.map((d) => (
-                                                                    <span key={d} className="text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 px-1.5 py-0.5 rounded">
-                                                                        {d}
-                                                                    </span>
-                                                                ))}
-                                                            </div>
-                                                        )}
-                                                        {startTime && endTime && (
-                                                            <span className="flex items-center gap-1 text-xs text-gray-500">
-                                                                <Clock className="w-3 h-3" />
-                                                                {startTime} – {endTime}
-                                                            </span>
-                                                        )}
-                                                    </div>
-                                                </div>
-                                            </div>
-                                            <div className="flex items-center gap-3 flex-shrink-0">
-                                                <span className="font-bold text-gray-800 text-sm bg-gray-50 border px-3 py-1.5 rounded-lg">
-                                                    LKR {coach.hourly_rate > 0 ? coach.hourly_rate.toLocaleString() : "—"}<span className="font-normal text-gray-400">/hr</span>
-                                                </span>
-                                            </div>
-                                        </div>
-                                    );
-                                })}
-                            </div>
-                        )}
-                    </div>
-                </Section>
-
-                {/* My Hosted Events Section */}
-                <Section title="My Hosted Events">
-                    <div className="bg-white rounded-xl shadow-sm border overflow-hidden">
-                        <div className="p-4 border-b bg-gray-50 flex justify-between items-center text-gray-500">
-                            <p className="text-[10px] font-bold uppercase tracking-wider">Recently Created</p>
+            <div className="max-w-[1600px] mx-auto flex">
+                {/* Sidebar Navigation */}
+                <aside className={`
+                    fixed lg:sticky top-16 z-20 w-64 h-[calc(100vh-64px)] bg-white border-r transition-transform duration-300
+                    ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
+                `}>
+                    <nav className="p-4 space-y-2">
+                        {menuItems.map((item) => (
                             <button
-                                onClick={() => navigate(ROUTES.HOST_EVENT)}
-                                className="text-emerald-700 hover:text-emerald-800 text-xs font-bold flex items-center gap-1.5 transition-colors"
+                                key={item.id}
+                                onClick={() => scrollToSection(item.id)}
+                                className="w-full flex items-center gap-3 px-4 py-3 text-sm font-semibold text-gray-600 hover:bg-emerald-50 hover:text-emerald-700 rounded-xl transition-all group"
                             >
-                                <Plus className="w-4 h-4" /> Host New Event
+                                <item.icon className="w-5 h-5 group-hover:scale-110 transition-transform" />
+                                {item.label}
                             </button>
-                        </div>
+                        ))}
+                    </nav>
+                </aside>
 
-                        {eventsLoading ? (
-                            <div className="p-12 flex flex-col items-center justify-center text-gray-500 gap-3">
-                                <Loader2 className="w-8 h-8 animate-spin text-emerald-600" />
-                                <p>Loading your events...</p>
-                            </div>
-                        ) : eventsError ? (
-                            <div className="p-8 text-center text-red-500 bg-red-50">
-                                {eventsError}
-                            </div>
-                        ) : events && events.length > 0 ? (
-                            <div className="divide-y">
-                                {events.map((event) => (
-                                    <div key={event.event_id} className="p-4 flex flex-col md:flex-row md:items-center justify-between gap-4 hover:bg-gray-50 transition-colors">
-                                        <div className="flex items-center gap-4">
-                                            <div className="bg-purple-100 p-3 rounded-lg text-purple-600">
-                                                <Trophy className="w-6 h-6" />
-                                            </div>
-                                            <div>
-                                                <h4 className="font-bold text-gray-900">{event.event_name}</h4>
-                                                <div className="flex items-center gap-2 text-xs text-gray-500">
-                                                    <span className="font-semibold text-purple-700 bg-purple-50 px-2 py-0.5 rounded text-[10px] uppercase">
-                                                        {event.event_type}
-                                                    </span>
-                                                    <CalendarDays className="w-3.5 h-3.5 text-gray-400 ml-1" />
-                                                    {event.start_date}
-                                                    <span className="w-1 h-1 bg-gray-300 rounded-full"></span>
-                                                    <Clock className="w-3 h-3 text-gray-400" />
-                                                    {event.start_time}
-                                                </div>
-                                            </div>
-                                        </div>
-
-                                        <div className="flex items-center gap-3">
-                                            <span className={`px-3 py-1 rounded-full text-xs font-bold capitalize
-                                                ${event.status === 'approved' ? 'bg-green-100 text-green-700' :
-                                                    event.status === 'pending' ? 'bg-yellow-100 text-yellow-700' :
-                                                        event.status === 'rejected' ? 'bg-red-100 text-red-700' :
-                                                            event.status === 'cancelled' ? 'bg-orange-100 text-orange-700' : 'bg-gray-100 text-gray-700'}
-                                            `}>
-                                                {event.status}
-                                            </span>
-
-                                            <div className="flex gap-2">
-                                                {(event.status === 'approved' || event.status === 'pending') && (
-                                                    <button
-                                                        onClick={() => handleCancelEvent(event.event_id)}
-                                                        title="Cancel Event"
-                                                        className="p-2 text-red-600 hover:bg-red-50 rounded-lg border border-transparent hover:border-red-100 transition-colors"
-                                                    >
-                                                        <XCircle className="w-4 h-4" />
-                                                    </button>
-                                                )}
-                                                {(event.status === 'rejected' || event.status === 'cancelled') && (
-                                                    <button
-                                                        onClick={() => handleRemoveEvent(event.event_id)}
-                                                        title="Remove from history"
-                                                        className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg border border-transparent hover:border-red-100 transition-colors"
-                                                    >
-                                                        <Trash2 className="w-4 h-4" />
-                                                    </button>
-                                                )}
-                                            </div>
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        ) : (
-                            <div className="p-12 flex flex-col items-center justify-center text-center gap-3">
-                                <div className="bg-gray-50 p-4 rounded-full">
-                                    <Megaphone className="w-8 h-8 text-gray-300" />
-                                </div>
-                                <p className="font-semibold text-gray-600">No events hosted yet.</p>
-                                <p className="text-sm text-gray-400 max-w-sm">
-                                    Want to organize a match or tournament? Start by creating your first event request.
-                                </p>
-                                <button
-                                    onClick={() => navigate(ROUTES.HOST_EVENT)}
-                                    className="mt-2 px-6 py-2 bg-emerald-600 text-white rounded-lg font-bold hover:bg-emerald-700 transition-all shadow-sm"
-                                >
-                                    Host an Event
-                                </button>
-                            </div>
-                        )}
-                    </div>
-                </Section>
-
-                {/* Community & Events Section */}
-                {!playerProfile?.has_team && (
-                    <div className="grid md:grid-cols-2 gap-6">
-
-                        {/* 1. Solo Player Registry */}
-                        <Section title="Solo Player Registry">
-                            <div className="bg-white p-6 rounded-xl shadow-sm border h-full flex flex-col justify-between">
-                                <div>
-                                    <p className="text-gray-600 text-sm mb-4">
-                                        Looking for a game? Mark yourself as available.
-                                    </p>
-                                    <button
-                                        onClick={toggleAvailability}
-                                        disabled={togglingAvailability}
-                                        className={`w-full flex items-center gap-3 p-3 rounded-lg border transition-all ${playerProfile?.is_available
-                                            ? "bg-emerald-50 border-emerald-200 text-emerald-800"
-                                            : "bg-gray-50 border-gray-200 text-gray-700"
-                                            } hover:shadow-sm`}
-                                    >
-                                        {togglingAvailability ? (
-                                            <Loader2 className="w-4 h-4 animate-spin" />
-                                        ) : (
-                                            <div className={`w-3 h-3 rounded-full ${playerProfile?.is_available ? "bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]" : "bg-gray-400"
-                                                }`}></div>
-                                        )}
-                                        <span className="font-semibold flex-1 text-left">
-                                            Status: <span>{playerProfile?.is_available ? "Available" : "Unavailable"}</span>
-                                        </span>
-                                        <span className="text-[10px] bg-white px-2 py-0.5 rounded border font-bold uppercase tracking-wider text-gray-400">
-                                            Toggle
-                                        </span>
-                                    </button>
-                                </div>
-                                <button
-                                    onClick={() => navigate(ROUTES.JOIN_SOLO_POOL)}
-                                    className="mt-4 w-full border-2 border-emerald-500 text-emerald-600 font-bold py-2 rounded-lg hover:bg-emerald-50 flex items-center justify-center gap-2 transition-colors"
-                                >
-                                    <UserPlus className="w-4 h-4" /> {playerProfile?.is_solo_player ? "Edit Player Card" : "Join Solo Pool"}
-                                </button>
-                            </div>
-                        </Section>
-
-                        {/* 2. Find a Team */}
-                        <Section title="Find a Team">
-                            <div className="bg-white p-6 rounded-xl shadow-sm border h-full flex flex-col justify-between">
-                                <div>
-                                    <p className="text-gray-600 text-sm mb-4">
-                                        Looking for a squad? Discover and join active teams in your community.
-                                    </p>
-                                    <div className="flex items-center gap-2 mt-2">
-                                        <div className="flex items-center gap-1.5 px-3 py-1 bg-emerald-50 text-emerald-700 rounded-lg border border-emerald-100">
-                                            <Users2 className="w-3.5 h-3.5" />
-                                            <span className="text-xs font-bold">{teamsCount} Teams Available</span>
-                                        </div>
-                                    </div>
-                                </div>
-                                <button
-                                    onClick={() => navigate(ROUTES.FIND_TEAM)}
-                                    className="mt-4 w-full border-2 border-emerald-500 text-emerald-600 font-bold py-2 rounded-lg hover:bg-emerald-50 flex items-center justify-center gap-2 transition-colors"
-                                >
-                                    <Search className="w-4 h-4" /> Browse Teams
-                                </button>
-                            </div>
-                        </Section>
-
-                    </div>
+                {/* Mobile Overlay */}
+                {isSidebarOpen && (
+                    <div 
+                        className="fixed inset-0 bg-black/20 z-10 lg:hidden"
+                        onClick={() => setIsSidebarOpen(false)}
+                    />
                 )}
 
-            </main>
-        </div >
+                {/* Content Area */}
+                <main className="flex-1 px-4 sm:px-8 py-10 space-y-12 overflow-hidden" id="overview">
+                    <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                        <div>
+                            <h2 className="text-3xl font-bold text-gray-900">Player Dashboard</h2>
+                            <p className="text-gray-600">
+                                Welcome back{playerProfile?.name ? `, ${playerProfile.name}` : ""}! Manage your games and teams.
+                            </p>
+                        </div>
+
+                        {/* Primary Action: Make Booking */}
+                        <button
+                            onClick={() => navigate(ROUTES.MAKE_RESERVATION)}
+                            className="bg-emerald-600 text-white px-6 py-3 rounded-xl font-bold flex items-center gap-2 shadow-lg hover:bg-emerald-700 transition-all hover:scale-105"
+                        >
+                            <Plus className="w-5 h-5" /> Make New Reservation
+                        </button>
+                    </div>
+
+                    {/* My Bookings Section */}
+                    <div id="upcoming">
+                        <Section title="Upcoming Bookings">
+                            <div className="bg-white rounded-xl shadow-sm border overflow-hidden">
+                                {loading ? (
+                                    <div className="p-12 flex flex-col items-center justify-center text-gray-500 gap-3">
+                                        <Loader2 className="w-8 h-8 animate-spin text-emerald-600" />
+                                        <p>Loading your bookings...</p>
+                                    </div>
+                                ) : upcomingBookings && upcomingBookings.length > 0 ? (
+                                    <div className="divide-y">
+                                        {upcomingBookings.map((booking) => (
+                                            <div key={booking.booking_id} className="p-4 flex flex-col md:flex-row md:items-center justify-between gap-4 hover:bg-gray-50 transition-colors">
+                                                <div className="flex items-center gap-4">
+                                                    <div className="bg-emerald-100 p-3 rounded-lg text-emerald-600">
+                                                        <Calendar className="w-6 h-6" />
+                                                    </div>
+                                                    <div>
+                                                        <h4 className="font-bold text-gray-900">
+                                                            {booking.slot_date
+                                                                ? new Date(booking.slot_date + 'T00:00:00').toLocaleDateString('en-US', {
+                                                                    weekday: 'short',
+                                                                    year: 'numeric',
+                                                                    month: 'short',
+                                                                    day: 'numeric'
+                                                                })
+                                                                : new Date(booking.booking_date).toLocaleDateString('en-US', {
+                                                                    timeZone: 'UTC',
+                                                                    weekday: 'short',
+                                                                    year: 'numeric',
+                                                                    month: 'short',
+                                                                    day: 'numeric'
+                                                                })
+                                                            }
+                                                        </h4>
+                                                        <div className="flex items-center gap-2 text-sm text-gray-500">
+                                                            <Clock className="w-3 h-3" />
+                                                            {booking.start_time && booking.end_time
+                                                                ? `${booking.start_time} - ${booking.end_time}`
+                                                                : `Slot #${booking.time_slot_id}`}
+                                                            <span className="w-1 h-1 bg-gray-300 rounded-full"></span>
+                                                            <MapPin className="w-3 h-3" /> Main Turf
+                                                        </div>
+                                                        {booking.coach_id && (
+                                                            <div className="mt-2 flex items-center gap-2">
+                                                                <div className="flex items-center gap-1.5 px-2 py-0.5 bg-blue-50 text-blue-600 rounded text-[11px] font-bold border border-blue-100">
+                                                                    Coach: {booking.coach_name || "Assigned"}
+                                                                </div>
+                                                                <span className={`text-[10px] font-bold uppercase tracking-wide
+                                                                    ${booking.coach_approval_status === 'approved' ? 'text-green-600' :
+                                                                        booking.coach_approval_status === 'rejected' ? 'text-red-600' : 'text-yellow-600'}
+                                                                `}>
+                                                                    {booking.coach_approval_status === 'pending' ? '• Waiting for Approval' : `• Request ${booking.coach_approval_status}`}
+                                                                </span>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                </div>
+
+                                                <div className="flex items-center gap-3">
+                                                    <span className={`px-3 py-1 rounded-full text-xs font-bold capitalize
+                                                        ${booking.status === 'confirmed' ? 'bg-green-100 text-green-700' :
+                                                            booking.status === 'pending' ? 'bg-yellow-100 text-yellow-700' :
+                                                                booking.status === 'cancelled' ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-700'}
+                                                    `}>
+                                                        {booking.status}
+                                                    </span>
+
+                                                    <div className="flex gap-2">
+                                                        {(booking.status === 'confirmed' || booking.status === 'pending') && (
+                                                            <>
+                                                                <button
+                                                                    onClick={() => navigate(`${ROUTES.MAKE_RESERVATION}?reschedule=${booking.booking_id}`)}
+                                                                    title="Reschedule"
+                                                                    className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg border border-transparent hover:border-blue-100"
+                                                                >
+                                                                    <RefreshCw className="w-4 h-4" />
+                                                                </button>
+                                                                <button
+                                                                    onClick={() => handleCancel(booking.booking_id)}
+                                                                    title="Cancel Booking"
+                                                                    className="p-2 text-red-600 hover:bg-red-50 rounded-lg border border-transparent hover:border-red-100"
+                                                                >
+                                                                    <XCircle className="w-4 h-4" />
+                                                                </button>
+                                                            </>
+                                                        )}
+                                                        {booking.status === 'cancelled' && (
+                                                            <button
+                                                                onClick={() => handleRemove(booking.booking_id)}
+                                                                title="Remove from history"
+                                                                className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg border border-transparent hover:border-red-100"
+                                                            >
+                                                                <Trash2 className="w-4 h-4" />
+                                                            </button>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                ) : (
+                                    <div className="p-12 text-center text-gray-400 font-medium bg-gray-50/50">
+                                        {error || "No upcoming bookings found."}
+                                    </div>
+                                )}
+                            </div>
+                        </Section>
+                    </div>
+
+                    {/* Booking History Section */}
+                    <div id="history">
+                        <Section title="Booking History">
+                            <div className="bg-white rounded-xl shadow-sm border overflow-hidden">
+                                {loading ? (
+                                    <div className="p-8 flex items-center justify-center text-gray-400">
+                                        <Loader2 className="w-6 h-6 animate-spin mr-2" /> Loading...
+                                    </div>
+                                ) : pastBookings && pastBookings.length > 0 ? (
+                                    <div className="divide-y">
+                                        {pastBookings.map((booking) => (
+                                            <div key={booking.booking_id} className="p-4 flex flex-col md:flex-row md:items-center justify-between gap-4 grayscale opacity-75 hover:grayscale-0 hover:opacity-100 transition-all">
+                                                <div className="flex items-center gap-4">
+                                                    <div className="bg-gray-100 p-3 rounded-lg text-gray-400">
+                                                        <HistoryIcon className="w-6 h-6" />
+                                                    </div>
+                                                    <div>
+                                                        <h4 className="font-bold text-gray-700">
+                                                            {booking.slot_date
+                                                                ? new Date(booking.slot_date + 'T00:00:00').toLocaleDateString('en-US', {
+                                                                    weekday: 'short',
+                                                                    year: 'numeric',
+                                                                    month: 'short',
+                                                                    day: 'numeric'
+                                                                })
+                                                                : "Past Date"
+                                                            }
+                                                        </h4>
+                                                        <div className="flex items-center gap-2 text-sm text-gray-400">
+                                                            <Clock className="w-3 h-3" /> {booking.start_time} - {booking.end_time}
+                                                            <span className="w-1 h-1 bg-gray-300 rounded-full"></span>
+                                                            <MapPin className="w-3 h-3" /> Main Turf
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                <div className="flex items-center gap-3">
+                                                    <span className="px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-gray-100 text-gray-500 border">
+                                                        Completed
+                                                    </span>
+                                                    {booking.status === 'cancelled' && (
+                                                        <button
+                                                            onClick={() => handleRemove(booking.booking_id)}
+                                                            title="Remove from history"
+                                                            className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                                        >
+                                                            <Trash2 className="w-4 h-4" />
+                                                        </button>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                ) : (
+                                    <div className="p-8 text-center text-gray-300 italic text-sm">
+                                        Your past games will appear here.
+                                    </div>
+                                )}
+                            </div>
+                        </Section>
+                    </div>
+
+                    {/* Coach Booking Section */}
+                    <div id="coaches">
+                        <Section title="Available Coaches">
+                            <div className="bg-white rounded-xl shadow-sm border overflow-hidden">
+                                {coachesLoading ? (
+                                    <div className="p-12 flex flex-col items-center justify-center text-gray-500 gap-3">
+                                        <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
+                                        <p>Loading coaches...</p>
+                                    </div>
+                                ) : coaches.length === 0 ? (
+                                    <div className="p-8 flex flex-col items-center justify-center text-center gap-3">
+                                        <div className="bg-blue-50 p-4 rounded-full">
+                                            <User className="w-8 h-8 text-blue-400" />
+                                        </div>
+                                        <p className="font-semibold text-gray-600">No coaches available yet.</p>
+                                        <p className="text-sm text-gray-400 max-w-sm">
+                                            Coaches who set up their availability will appear here.
+                                        </p>
+                                    </div>
+                                ) : (
+                                    <div className="divide-y">
+                                        {coaches.map((coach) => {
+                                            const [daysPart = "", hoursPart = ""] = coach.availability.split("|");
+                                            const days = daysPart ? daysPart.split(",").filter(Boolean) : [];
+                                            const [startTime, endTime] = hoursPart ? hoursPart.split("-") : ["", ""];
+
+                                            return (
+                                                <div key={coach.user_id} className="p-5 flex flex-col md:flex-row md:items-center justify-between gap-4 hover:bg-gray-50 transition-colors">
+                                                    <div className="flex items-center gap-4">
+                                                        <div className="bg-blue-100 p-3 rounded-xl text-blue-600">
+                                                            <User className="w-6 h-6" />
+                                                        </div>
+                                                        <div>
+                                                            <h4 className="font-bold text-gray-900">{coach.name}</h4>
+                                                            {coach.specialization && (
+                                                                <p className="text-sm text-blue-600 font-medium">{coach.specialization}</p>
+                                                            )}
+                                                            <div className="flex flex-wrap items-center gap-2 mt-1">
+                                                                {days.length > 0 && (
+                                                                    <div className="flex gap-1">
+                                                                        {days.map((d) => (
+                                                                            <span key={d} className="text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 px-1.5 py-0.5 rounded">
+                                                                                {d}
+                                                                            </span>
+                                                                        ))}
+                                                                    </div>
+                                                                )}
+                                                                {startTime && endTime && (
+                                                                    <span className="flex items-center gap-1 text-xs text-gray-500">
+                                                                        <Clock className="w-3 h-3" />
+                                                                        {startTime} – {endTime}
+                                                                    </span>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    <div className="flex items-center gap-3 flex-shrink-0">
+                                                        <span className="font-bold text-gray-800 text-sm bg-gray-50 border px-3 py-1.5 rounded-lg">
+                                                            LKR {coach.hourly_rate > 0 ? coach.hourly_rate.toLocaleString() : "—"}<span className="font-normal text-gray-400">/hr</span>
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                )}
+                            </div>
+                        </Section>
+                    </div>
+
+                    {/* My Hosted Events Section */}
+                    <div id="events">
+                        <Section title="My Hosted Events">
+                            <div className="bg-white rounded-xl shadow-sm border overflow-hidden">
+                                <div className="p-4 border-b bg-gray-50 flex justify-between items-center text-gray-500">
+                                    <p className="text-[10px] font-bold uppercase tracking-wider">Recently Created</p>
+                                    <button
+                                        onClick={() => navigate(ROUTES.HOST_EVENT)}
+                                        className="text-emerald-700 hover:text-emerald-800 text-xs font-bold flex items-center gap-1.5 transition-colors"
+                                    >
+                                        <Plus className="w-4 h-4" /> Host New Event
+                                    </button>
+                                </div>
+
+                                {eventsLoading ? (
+                                    <div className="p-12 flex flex-col items-center justify-center text-gray-500 gap-3">
+                                        <Loader2 className="w-8 h-8 animate-spin text-emerald-600" />
+                                        <p>Loading your events...</p>
+                                    </div>
+                                ) : eventsError ? (
+                                    <div className="p-8 text-center text-red-500 bg-red-50">
+                                        {eventsError}
+                                    </div>
+                                ) : events && events.length > 0 ? (
+                                    <div className="divide-y">
+                                        {events.map((event) => (
+                                            <div key={event.event_id} className="p-4 flex flex-col md:flex-row md:items-center justify-between gap-4 hover:bg-gray-50 transition-colors">
+                                                <div className="flex items-center gap-4">
+                                                    <div className="bg-purple-100 p-3 rounded-lg text-purple-600">
+                                                        <Trophy className="w-6 h-6" />
+                                                    </div>
+                                                    <div>
+                                                        <h4 className="font-bold text-gray-900">{event.event_name}</h4>
+                                                        <div className="flex items-center gap-2 text-xs text-gray-500">
+                                                            <span className="font-semibold text-purple-700 bg-purple-50 px-2 py-0.5 rounded text-[10px] uppercase">
+                                                                {event.event_type}
+                                                            </span>
+                                                            <CalendarDays className="w-3.5 h-3.5 text-gray-400 ml-1" />
+                                                            {event.start_date}
+                                                            <span className="w-1 h-1 bg-gray-300 rounded-full"></span>
+                                                            <Clock className="w-3 h-3 text-gray-400" />
+                                                            {event.start_time}
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                <div className="flex items-center gap-3">
+                                                    <span className={`px-3 py-1 rounded-full text-xs font-bold capitalize
+                                                        ${event.status === 'approved' ? 'bg-green-100 text-green-700' :
+                                                            event.status === 'pending' ? 'bg-yellow-100 text-yellow-700' :
+                                                                event.status === 'rejected' ? 'bg-red-100 text-red-700' :
+                                                                    event.status === 'cancelled' ? 'bg-orange-100 text-orange-700' : 'bg-gray-100 text-gray-700'}
+                                                    `}>
+                                                        {event.status}
+                                                    </span>
+
+                                                    <div className="flex gap-2">
+                                                        {(event.status === 'approved' || event.status === 'pending') && (
+                                                            <button
+                                                                onClick={() => handleCancelEvent(event.event_id)}
+                                                                title="Cancel Event"
+                                                                className="p-2 text-red-600 hover:bg-red-50 rounded-lg border border-transparent hover:border-red-100 transition-colors"
+                                                            >
+                                                                <XCircle className="w-4 h-4" />
+                                                            </button>
+                                                        )}
+                                                        {(event.status === 'rejected' || event.status === 'cancelled') && (
+                                                            <button
+                                                                onClick={() => handleRemoveEvent(event.event_id)}
+                                                                title="Remove from history"
+                                                                className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg border border-transparent hover:border-red-100 transition-colors"
+                                                            >
+                                                                <Trash2 className="w-4 h-4" />
+                                                            </button>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                ) : (
+                                    <div className="p-12 flex flex-col items-center justify-center text-center gap-3">
+                                        <div className="bg-gray-50 p-4 rounded-full">
+                                            <Megaphone className="w-8 h-8 text-gray-300" />
+                                        </div>
+                                        <p className="font-semibold text-gray-600">No events hosted yet.</p>
+                                        <p className="text-sm text-gray-400 max-w-sm">
+                                            Want to organize a match or tournament? Start by creating your first event request.
+                                        </p>
+                                        <button
+                                            onClick={() => navigate(ROUTES.HOST_EVENT)}
+                                            className="mt-2 px-6 py-2 bg-emerald-600 text-white rounded-lg font-bold hover:bg-emerald-700 transition-all shadow-sm"
+                                        >
+                                            Host an Event
+                                        </button>
+                                    </div>
+                                )}
+                            </div>
+                        </Section>
+                    </div>
+
+                    {/* Community & Events Section */}
+                    <div id="community">
+                        {!playerProfile?.has_team && (
+                            <div className="grid md:grid-cols-2 gap-6">
+
+                                {/* 1. Solo Player Registry */}
+                                <Section title="Solo Player Registry">
+                                    <div className="bg-white p-6 rounded-xl shadow-sm border h-full flex flex-col justify-between">
+                                        <div>
+                                            <p className="text-gray-600 text-sm mb-4">
+                                                Looking for a game? Mark yourself as available.
+                                            </p>
+                                            <button
+                                                onClick={toggleAvailability}
+                                                disabled={togglingAvailability}
+                                                className={`w-full flex items-center gap-3 p-3 rounded-lg border transition-all ${playerProfile?.is_available
+                                                    ? "bg-emerald-50 border-emerald-200 text-emerald-800"
+                                                    : "bg-gray-50 border-gray-200 text-gray-700"
+                                                    } hover:shadow-sm`}
+                                            >
+                                                {togglingAvailability ? (
+                                                    <Loader2 className="w-4 h-4 animate-spin" />
+                                                ) : (
+                                                    <div className={`w-3 h-3 rounded-full ${playerProfile?.is_available ? "bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]" : "bg-gray-400"
+                                                        }`}></div>
+                                                )}
+                                                <span className="font-semibold flex-1 text-left">
+                                                    Status: <span>{playerProfile?.is_available ? "Available" : "Unavailable"}</span>
+                                                </span>
+                                                <span className="text-[10px] bg-white px-2 py-0.5 rounded border font-bold uppercase tracking-wider text-gray-400">
+                                                    Toggle
+                                                </span>
+                                            </button>
+                                        </div>
+                                        <button
+                                            onClick={() => navigate(ROUTES.JOIN_SOLO_POOL)}
+                                            className="mt-4 w-full border-2 border-emerald-500 text-emerald-600 font-bold py-2 rounded-lg hover:bg-emerald-50 flex items-center justify-center gap-2 transition-colors"
+                                        >
+                                            <UserPlus className="w-4 h-4" /> {playerProfile?.is_solo_player ? "Edit Player Card" : "Join Solo Pool"}
+                                        </button>
+                                    </div>
+                                </Section>
+
+                                {/* 2. Find a Team */}
+                                <Section title="Find a Team">
+                                    <div className="bg-white p-6 rounded-xl shadow-sm border h-full flex flex-col justify-between">
+                                        <div>
+                                            <p className="text-gray-600 text-sm mb-4">
+                                                Looking for a squad? Discover and join active teams in your community.
+                                            </p>
+                                            <div className="flex items-center gap-2 mt-2">
+                                                <div className="flex items-center gap-1.5 px-3 py-1 bg-emerald-50 text-emerald-700 rounded-lg border border-emerald-100">
+                                                    <Users2 className="w-3.5 h-3.5" />
+                                                    <span className="text-xs font-bold">{teamsCount} Teams Available</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <button
+                                            onClick={() => navigate(ROUTES.FIND_TEAM)}
+                                            className="mt-4 w-full border-2 border-emerald-500 text-emerald-600 font-bold py-2 rounded-lg hover:bg-emerald-50 flex items-center justify-center gap-2 transition-colors"
+                                        >
+                                            <Search className="w-4 h-4" /> Browse Teams
+                                        </button>
+                                    </div>
+                                </Section>
+
+                            </div>
+                        )}
+                    </div>
+                </main>
+            </div>
+        </div>
     );
 }

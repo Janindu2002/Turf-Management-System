@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, Save, Loader2, Clock, Briefcase, CheckCircle } from "lucide-react";
+import { ArrowLeft, Save, Loader2, Clock, Briefcase, CheckCircle, RotateCcw } from "lucide-react";
 import { ROUTES } from "@/constants";
 import logo from "@/assets/logo.jpeg";
 import { getCoachProfile, updateCoachProfile } from "@/api/coach";
@@ -41,14 +41,22 @@ export default function CoachAvailability() {
                     const parts = profile.availability.split("|");
                     const days = parseDays(parts[0] ?? "");
                     const hours = parseHours(parts[1] ?? "");
-                    setSelectedDays(days.length ? days : ["Mon", "Wed", "Fri"]);
-                    setStartTime(hours.start);
-                    setEndTime(hours.end);
+                    setSelectedDays(days);
+                    setStartTime(hours.start || "09:00");
+                    setEndTime(hours.end || "17:00");
                 }
+                // Pre-fill existing configurations
                 if (profile.specialization) setSpecialization(profile.specialization);
                 if (profile.hourly_rate) setRate(String(profile.hourly_rate));
             })
-            .catch(() => {}) // first-time coach may have no existing profile
+            .catch(() => {
+                // First-time coach, use safe defaults
+                setSelectedDays(["Mon", "Wed", "Fri"]);
+                setStartTime("09:00");
+                setEndTime("17:00");
+                setRate("");
+                setSpecialization("");
+            })
             .finally(() => setFetching(false));
     }, []);
 
@@ -58,17 +66,54 @@ export default function CoachAvailability() {
         );
     };
 
+    const handleClearSelections = () => {
+        if (!window.confirm("Are you sure you want to clear all selections? This will reset all fields.")) return;
+        setSelectedDays([]);
+        setStartTime("00:00");
+        setEndTime("00:00");
+        setRate("");
+        setSpecialization("");
+    };
+
     const handleSave = async () => {
         setError(null);
         setSaved(false);
+
+        // --- Validation ---
+        if (selectedDays.length === 0) {
+            setError("Please select at least one working day.");
+            return;
+        }
+
+        if (startTime < "08:00" || endTime > "21:00") {
+            setError("Operating hours must be between 08:00 AM and 09:00 PM.");
+            return;
+        }
+
+        if (startTime >= endTime) {
+            setError("End time must be after start time.");
+            return;
+        }
+
+        if (!specialization.trim()) {
+            setError("Please enter your coaching specialization.");
+            return;
+        }
+
+        const hourlyRate = parseFloat(rate);
+        if (isNaN(hourlyRate) || hourlyRate <= 0) {
+            setError("Please enter a valid hourly rate (greater than 0).");
+            return;
+        }
+        // --- End Validation ---
+
         setLoading(true);
         try {
-            // Encode as "Mon,Wed,Fri|16:00-20:00" — simple compound string
             const availability = `${serializeDays(selectedDays)}|${serializeHours(startTime, endTime)}`;
             await updateCoachProfile({
-                specialization,
+                specialization: specialization.trim(),
                 availability,
-                hourly_rate: parseFloat(rate) || 0,
+                hourly_rate: hourlyRate,
             });
             setSaved(true);
             setTimeout(() => navigate(ROUTES.COACH_DASHBOARD), 1200);
@@ -125,7 +170,15 @@ export default function CoachAvailability() {
 
                     {/* Working Days */}
                     <div className="bg-white p-6 rounded-xl shadow-sm border">
-                        <h3 className="font-bold text-gray-800 mb-4">Working Days</h3>
+                        <div className="flex justify-between items-center mb-4">
+                            <h3 className="font-bold text-gray-800 text-lg">Working Days</h3>
+                            <button
+                                onClick={handleClearSelections}
+                                className="flex items-center gap-1.5 text-xs font-bold text-red-500 hover:text-red-600 hover:bg-red-50 px-2 py-1 rounded-lg transition-colors border border-transparent hover:border-red-100"
+                            >
+                                <RotateCcw className="w-3.5 h-3.5" /> Clear All
+                            </button>
+                        </div>
                         <div className="flex flex-wrap gap-2">
                             {DAYS.map((day) => (
                                 <button
