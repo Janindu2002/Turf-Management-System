@@ -73,13 +73,16 @@ export default function LandingPage() {
                         />
                         <span className="font-bold text-xl">Astro Turf</span>
                     </div>
-                    <div className="flex gap-4 text-sm font-semibold">
-                        <button onClick={() => navigate("/login")} className="text-gray-600 hover:text-emerald-600">
+                    <div className="flex gap-3 text-sm font-bold">
+                        <button
+                            onClick={() => navigate("/login")}
+                            className="px-6 py-2.5 bg-gray-900 text-white rounded-full hover:bg-gray-800 shadow-lg shadow-gray-200 transition-all duration-300 transform hover:-translate-y-0.5"
+                        >
                             Login
                         </button>
                         <button
                             onClick={() => navigate("/register")}
-                            className="bg-emerald-600 text-white px-4 py-2 rounded-full hover:bg-emerald-700"
+                            className="px-6 py-2.5 bg-gray-900 text-white rounded-full hover:bg-gray-800 shadow-lg shadow-gray-200 transition-all duration-300 transform hover:-translate-y-0.5"
                         >
                             Register
                         </button>
