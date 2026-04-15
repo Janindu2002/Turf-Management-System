@@ -15,15 +15,17 @@ var (
 )
 
 type BookingService struct {
-	bookingRepo  *repositories.BookingRepository
-	timeslotRepo *repositories.TimeSlotRepository
+	bookingRepo         *repositories.BookingRepository
+	timeslotRepo        *repositories.TimeSlotRepository
+	notificationService *NotificationService
 }
 
 // NewBookingService creates a new booking service
-func NewBookingService(bookingRepo *repositories.BookingRepository, timeslotRepo *repositories.TimeSlotRepository) *BookingService {
+func NewBookingService(bookingRepo *repositories.BookingRepository, timeslotRepo *repositories.TimeSlotRepository, notificationService *NotificationService) *BookingService {
 	return &BookingService{
-		bookingRepo:  bookingRepo,
-		timeslotRepo: timeslotRepo,
+		bookingRepo:         bookingRepo,
+		timeslotRepo:        timeslotRepo,
+		notificationService: notificationService,
 	}
 }
 
@@ -77,6 +79,12 @@ func (s *BookingService) MakeReservation(booking *models.Booking) error {
 	err = s.timeslotRepo.UpdateStatus(*booking.TimeSlotID, "booked")
 	if err != nil {
 		return fmt.Errorf("failed to update timeslot status: %w", err)
+	}
+
+	// Notify user
+	enriched, _ := s.bookingRepo.GetByID(booking.BookingID)
+	if enriched != nil {
+		s.notificationService.NotifyBookingChange(enriched, "Created")
 	}
 
 	return nil
@@ -164,9 +172,14 @@ func (s *BookingService) RescheduleBooking(bookingID int, newTimeSlotID int, use
 		return err
 	}
 
+	// Notify user
+	enriched, _ := s.bookingRepo.GetByID(booking.BookingID)
+	if enriched != nil {
+		s.notificationService.NotifyBookingChange(enriched, "Updated")
+	}
+
 	return nil
 }
-
 
 // CancelBooking cancels a booking and frees the timeslot, verifying ownership
 func (s *BookingService) CancelBooking(bookingID int, userID int) error {
@@ -200,6 +213,9 @@ func (s *BookingService) CancelBooking(bookingID int, userID int) error {
 		return err
 	}
 
+	// Notify user
+	s.notificationService.NotifyBookingChange(booking, "Cancelled")
+
 	return nil
 }
 
@@ -226,11 +242,23 @@ func (s *BookingService) ApproveBooking(bookingID int) error {
 	booking.AdminApprovalStatus = "approved"
 
 	// If no coach is required or coach has already approved, set status to confirmed
+	isConfirmed := false
 	if booking.CoachID == nil || booking.CoachApprovalStatus == "approved" {
 		booking.Status = "confirmed"
+		isConfirmed = true
 	}
 
-	return s.bookingRepo.Update(booking)
+	err = s.bookingRepo.Update(booking)
+	if err != nil {
+		return err
+	}
+
+	// Notify user if confirmed
+	if isConfirmed {
+		s.notificationService.NotifyBookingChange(booking, "Confirmed")
+	}
+
+	return nil
 }
 
 // RejectBooking marks a booking as cancelled and frees the timeslot
@@ -258,6 +286,9 @@ func (s *BookingService) RejectBooking(bookingID int) error {
 		return err
 	}
 
+	// Notify user
+	s.notificationService.NotifyBookingChange(booking, "Cancelled")
+
 	return nil
 }
 
@@ -284,11 +315,23 @@ func (s *BookingService) CoachApproveBooking(bookingID int, coachID int) error {
 	booking.CoachApprovalStatus = "approved"
 
 	// If admin has already approved, set status to confirmed
+	isConfirmed := false
 	if booking.AdminApprovalStatus == "approved" {
 		booking.Status = "confirmed"
+		isConfirmed = true
 	}
 
-	return s.bookingRepo.Update(booking)
+	err = s.bookingRepo.Update(booking)
+	if err != nil {
+		return err
+	}
+
+	// Notify user if confirmed
+	if isConfirmed {
+		s.notificationService.NotifyBookingChange(booking, "Confirmed")
+	}
+
+	return nil
 }
 
 // CoachRejectBooking marks a booking as rejected by the coach
@@ -315,7 +358,15 @@ func (s *BookingService) CoachRejectBooking(bookingID int, coachID int) error {
 	}
 
 	// Free the timeslot
-	return s.timeslotRepo.UpdateStatus(*booking.TimeSlotID, "available")
+	err = s.timeslotRepo.UpdateStatus(*booking.TimeSlotID, "available")
+	if err != nil {
+		return err
+	}
+
+	// Notify user
+	s.notificationService.NotifyBookingChange(booking, "Cancelled")
+
+	return nil
 }
 
 // GetBooking retrieves a single booking by ID and verifies ownership

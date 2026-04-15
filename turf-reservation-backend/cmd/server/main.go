@@ -34,10 +34,12 @@ func main() {
 	coachRepo := repositories.NewCoachRepository(db)
 	reportRepo := repositories.NewReportRepository(db)
 	verificationRepo := repositories.NewEmailVerificationRepository(db)
+	notificationRepo := repositories.NewNotificationRepository(db)
 
 	// Initialize services
 	emailService := services.NewEmailService(cfg)
-	bookingService := services.NewBookingService(bookingRepo, timeSlotRepo)
+	notificationService := services.NewNotificationService(notificationRepo, bookingRepo, emailService)
+	bookingService := services.NewBookingService(bookingRepo, timeSlotRepo, notificationService)
 	eventService := services.NewEventService(eventRepo, timeSlotRepo)
 	playerService := services.NewPlayerService(playerRepo, userRepo)
 	teamService := services.NewTeamService(teamRepo)
@@ -60,6 +62,7 @@ func main() {
 
 	// Start background workers
 	teamService.StartCleanupWorker()
+	notificationService.StartReminderWorker()
 
 	// Setup routes
 	router := routes.SetupRouter(authHandler, availabilityHandler, bookingHandler, eventHandler, playerHandler, teamHandler, coachHandler, reportHandler, cfg)
