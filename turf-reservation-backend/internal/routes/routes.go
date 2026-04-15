@@ -59,6 +59,8 @@ func SetupRouter(authHandler *handlers.AuthHandler, availabilityHandler *handler
 			auth.POST("/login", authHandler.Login)
 			auth.POST("/forgot-password", authHandler.ForgotPassword)
 			auth.POST("/reset-password", authHandler.ResetPassword)
+			auth.POST("/send-verification-otp", authHandler.SendVerificationOTP)
+			auth.POST("/verify-otp", authHandler.VerifyOTP)
 		}
 
 		// Protected authentication routes

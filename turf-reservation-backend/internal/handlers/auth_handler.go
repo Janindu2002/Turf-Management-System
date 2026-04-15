@@ -23,25 +23,27 @@ import (
 )
 
 type AuthHandler struct {
-	userRepo     *repositories.UserRepository
-	playerRepo   *repositories.PlayerRepository
-	coachRepo    *repositories.CoachRepository
-	resetRepo    *repositories.PasswordResetRepository
-	logRepo      *repositories.SecurityLogRepository
-	emailService *services.EmailService
-	config       *config.Config
+	userRepo         *repositories.UserRepository
+	playerRepo       *repositories.PlayerRepository
+	coachRepo        *repositories.CoachRepository
+	resetRepo        *repositories.PasswordResetRepository
+	verificationRepo *repositories.EmailVerificationRepository
+	logRepo          *repositories.SecurityLogRepository
+	emailService     *services.EmailService
+	config           *config.Config
 }
 
 // NewAuthHandler creates a new auth handler
-func NewAuthHandler(userRepo *repositories.UserRepository, playerRepo *repositories.PlayerRepository, coachRepo *repositories.CoachRepository, resetRepo *repositories.PasswordResetRepository, logRepo *repositories.SecurityLogRepository, emailService *services.EmailService, cfg *config.Config) *AuthHandler {
+func NewAuthHandler(userRepo *repositories.UserRepository, playerRepo *repositories.PlayerRepository, coachRepo *repositories.CoachRepository, resetRepo *repositories.PasswordResetRepository, logRepo *repositories.SecurityLogRepository, emailService *services.EmailService, verificationRepo *repositories.EmailVerificationRepository, cfg *config.Config) *AuthHandler {
 	return &AuthHandler{
-		userRepo:     userRepo,
-		playerRepo:   playerRepo,
-		coachRepo:    coachRepo,
-		resetRepo:    resetRepo,
-		logRepo:      logRepo,
-		emailService: emailService,
-		config:       cfg,
+		userRepo:         userRepo,
+		playerRepo:       playerRepo,
+		coachRepo:        coachRepo,
+		resetRepo:        resetRepo,
+		verificationRepo: verificationRepo,
+		logRepo:          logRepo,
+		emailService:     emailService,
+		config:           cfg,
 	}
 }
 
@@ -81,12 +83,13 @@ func (h *AuthHandler) Register(c *gin.Context) {
 	phone := strings.TrimSpace(c.Request.FormValue("phone"))
 	password := c.Request.FormValue("password")
 	role := strings.TrimSpace(c.Request.FormValue("role"))
+	otp := strings.TrimSpace(c.Request.FormValue("otp"))
 
 	// Validate required fields
-	if name == "" || email == "" || password == "" || role == "" {
+	if name == "" || email == "" || password == "" || role == "" || otp == "" {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"success": false,
-			"error":   "Name, email, password, and role are required",
+			"error":   "Name, email, password, role, and verification code are required",
 		})
 		return
 	}
@@ -148,6 +151,26 @@ func (h *AuthHandler) Register(c *gin.Context) {
 		c.JSON(http.StatusConflict, gin.H{
 			"success": false,
 			"error":   "Email already registered",
+		})
+		return
+	}
+
+	// Verify OTP
+	verification, err := h.verificationRepo.GetLatestByEmail(email)
+	if err != nil || verification.OTP != otp {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"error":   "Invalid verification code",
+		})
+		return
+	}
+
+	// Check expiry
+	if time.Now().After(verification.ExpiresAt) {
+		_ = h.verificationRepo.DeleteByEmail(email)
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"error":   "Verification code has expired",
 		})
 		return
 	}
@@ -230,6 +253,9 @@ func (h *AuthHandler) Register(c *gin.Context) {
 			h.recordLog(c, &user.UserID, "registration_coach", "failure", "Failed to create coach record: "+err.Error())
 		}
 	}
+
+	// Delete verification record
+	_ = h.verificationRepo.DeleteByEmail(email)
 
 	h.recordLog(c, &user.UserID, "registration", "success", "User registered successfully")
 
@@ -546,5 +572,83 @@ func (h *AuthHandler) ResetPassword(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"message": "Password updated successfully. You can now login with your new password.",
+	})
+}
+
+// SendVerificationOTP handles sending an OTP for email verification during registration
+func (h *AuthHandler) SendVerificationOTP(c *gin.Context) {
+	var req struct {
+		Email string `json:"email" binding:"required,email"`
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Invalid email address"})
+		return
+	}
+
+	email := strings.ToLower(strings.TrimSpace(req.Email))
+
+	// Check if email already exists
+	exists, err := h.userRepo.EmailExists(email)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to check email availability"})
+		return
+	}
+	if exists {
+		c.JSON(http.StatusConflict, gin.H{"success": false, "error": "Email already registered"})
+		return
+	}
+
+	// Generate 6-digit OTP
+	otp := fmt.Sprintf("%06d", uuid.New().ID()%1000000)
+	expiry := time.Now().Add(15 * time.Minute)
+
+	// Save in DB
+	err = h.verificationRepo.Create(email, otp, expiry)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to generate verification code"})
+		return
+	}
+
+	// Send email
+	err = h.emailService.SendVerificationOTP(email, otp)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to send verification email"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "Verification code sent to your email.",
+	})
+}
+
+// VerifyOTP handles manual verification of the OTP (optional, for frontend UX)
+func (h *AuthHandler) VerifyOTP(c *gin.Context) {
+	var req struct {
+		Email string `json:"email" binding:"required,email"`
+		OTP   string `json:"otp" binding:"required"`
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Invalid request"})
+		return
+	}
+
+	email := strings.ToLower(strings.TrimSpace(req.Email))
+	verification, err := h.verificationRepo.GetLatestByEmail(email)
+	if err != nil || verification.OTP != req.OTP {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Invalid verification code"})
+		return
+	}
+
+	if time.Now().After(verification.ExpiresAt) {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Verification code has expired"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "Email verified successfully.",
 	})
 }

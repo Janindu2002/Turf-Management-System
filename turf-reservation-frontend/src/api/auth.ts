@@ -75,3 +75,23 @@ export async function resetPassword(email: string, otp: string, password: string
         throw new Error(response.data.error || 'Failed to reset password');
     }
 }
+
+/**
+ * Send a verification OTP for registration
+ */
+export async function sendVerificationOTP(email: string): Promise<void> {
+    const response = await client.post<ApiResponse<void>>('/api/auth/send-verification-otp', { email });
+    if (!response.data.success) {
+        throw new Error(response.data.error || 'Failed to send verification code');
+    }
+}
+
+/**
+ * Verify registration OTP
+ */
+export async function verifyOTP(email: string, otp: string): Promise<void> {
+    const response = await client.post<ApiResponse<void>>('/api/auth/verify-otp', { email, otp });
+    if (!response.data.success) {
+        throw new Error(response.data.error || 'Invalid verification code');
+    }
+}

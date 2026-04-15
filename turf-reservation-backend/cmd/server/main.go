@@ -33,6 +33,7 @@ func main() {
 	teamRepo := repositories.NewTeamRepository(db)
 	coachRepo := repositories.NewCoachRepository(db)
 	reportRepo := repositories.NewReportRepository(db)
+	verificationRepo := repositories.NewEmailVerificationRepository(db)
 
 	// Initialize services
 	emailService := services.NewEmailService(cfg)
@@ -48,7 +49,7 @@ func main() {
 	}
 
 	// Initialize handlers
-	authHandler := handlers.NewAuthHandler(userRepo, playerRepo, coachRepo, resetRepo, logRepo, emailService, cfg)
+	authHandler := handlers.NewAuthHandler(userRepo, playerRepo, coachRepo, resetRepo, logRepo, emailService, verificationRepo, cfg)
 	availabilityHandler := handlers.NewAvailabilityHandler(timeSlotRepo)
 	bookingHandler := handlers.NewBookingHandler(bookingService)
 	eventHandler := handlers.NewEventHandler(eventService)
