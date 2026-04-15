@@ -91,10 +91,11 @@ func (s *EmailService) SendBookingStatusEmail(to, name, status, bookingDetails s
 	subject := fmt.Sprintf("Subject: Booking %s - Turf Reservation\n", status)
 	mime := "MIME-version: 1.0;\nContent-Type: text/html; charset=\"UTF-8\";\n\n"
 	
-	statusColor := "#10b981" // Default emerald
-	if status == "Cancelled" {
+	statusColor := "#10b981" // Default emerald (Confirmed/Created)
+	switch status {
+	case "Cancelled":
 		statusColor = "#ef4444" // red
-	} else if status == "Updated" {
+	case "Updated":
 		statusColor = "#3b82f6" // blue
 	}
 
