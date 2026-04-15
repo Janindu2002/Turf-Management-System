@@ -47,11 +47,13 @@ func (r *BookingRepository) GetByID(id int) (*models.Booking, error) {
 		SELECT b.booking_id, b.user_id, b.time_slot_id, b.coach_id, b.event_id, b.booking_date, b.status, 
 		       b.coach_approval_status, b.admin_approval_status, b.total_price, b.payment_status,
 		       TO_CHAR(ts.date, 'YYYY-MM-DD'), TO_CHAR(ts.start_time, 'HH24:MI'), TO_CHAR(ts.end_time, 'HH24:MI'),
-		       u.name as coach_name, t.name as turf_name
+		       c.name as coach_name, t.name as turf_name,
+		       p.name as player_name, p.email as player_email
 		FROM bookings b
 		JOIN time_slots ts ON b.time_slot_id = ts.time_slot_id
-		LEFT JOIN users u ON b.coach_id = u.user_id
+		LEFT JOIN users c ON b.coach_id = c.user_id
 		JOIN turfs t ON ts.turf_id = t.turf_id
+		JOIN users p ON b.user_id = p.user_id
 		WHERE b.booking_id = $1
 	`
 	booking := &models.Booking{}
@@ -73,6 +75,8 @@ func (r *BookingRepository) GetByID(id int) (*models.Booking, error) {
 		&booking.EndTime,
 		&coachName,
 		&booking.TurfName,
+		&booking.PlayerName,
+		&booking.PlayerEmail,
 	)
 	if coachName.Valid {
 		booking.CoachName = coachName.String
@@ -220,17 +224,29 @@ func (r *BookingRepository) Update(booking *models.Booking) error {
 
 // DeleteCancelled permanently deletes a cancelled booking record
 func (r *BookingRepository) DeleteCancelled(bookingID int, userID int) error {
-	query := `
-		DELETE FROM bookings
-		WHERE booking_id = $1 AND user_id = $2 AND status = 'cancelled'
-	`
-	result, err := r.db.Exec(query, bookingID, userID)
+	// First verify ownership and that the booking is cancelled
+	var count int
+	err := r.db.QueryRow(
+		`SELECT COUNT(*) FROM bookings WHERE booking_id = $1 AND user_id = $2 AND status = 'cancelled'`,
+		bookingID, userID,
+	).Scan(&count)
+	if err != nil {
+		return fmt.Errorf("failed to verify booking: %w", err)
+	}
+	if count == 0 {
+		return fmt.Errorf("booking not found or cannot be removed (only cancelled bookings can be removed)")
+	}
+
+	// Delete related notifications first (FK constraint)
+	_, err = r.db.Exec(`DELETE FROM notifications WHERE booking_id = $1`, bookingID)
+	if err != nil {
+		return fmt.Errorf("failed to delete booking notifications: %w", err)
+	}
+
+	// Now delete the booking itself
+	_, err = r.db.Exec(`DELETE FROM bookings WHERE booking_id = $1 AND user_id = $2 AND status = 'cancelled'`, bookingID, userID)
 	if err != nil {
 		return fmt.Errorf("failed to delete booking: %w", err)
-	}
-	rows, _ := result.RowsAffected()
-	if rows == 0 {
-		return fmt.Errorf("booking not found or cannot be removed (only cancelled bookings can be removed)")
 	}
 	return nil
 }

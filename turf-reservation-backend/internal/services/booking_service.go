@@ -81,12 +81,6 @@ func (s *BookingService) MakeReservation(booking *models.Booking) error {
 		return fmt.Errorf("failed to update timeslot status: %w", err)
 	}
 
-	// Notify user
-	enriched, _ := s.bookingRepo.GetByID(booking.BookingID)
-	if enriched != nil {
-		s.notificationService.NotifyBookingChange(enriched, "Created")
-	}
-
 	return nil
 }
 
