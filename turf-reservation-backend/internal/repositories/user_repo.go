@@ -164,10 +164,51 @@ func (r *UserRepository) UpdatePassword(userID int, hashedPassword string) error
 	return nil
 }
 
-// DeleteUser deletes a user and all associated data via ON DELETE CASCADE
+// DeleteUser deletes a user and all associated data.
+// It manually handles the bookings foreign key (which lacks ON DELETE CASCADE)
+// by freeing the reserved timeslots and deleting the bookings first within a transaction.
 func (r *UserRepository) DeleteUser(userID int) error {
-	query := `DELETE FROM users WHERE user_id = $1`
-	result, err := r.db.Exec(query, userID)
+	tx, err := r.db.Begin()
+	if err != nil {
+		return fmt.Errorf("failed to begin transaction: %w", err)
+	}
+	defer func() {
+		if err != nil {
+			tx.Rollback()
+		}
+	}()
+
+	// Free timeslots that were reserved by this user's active bookings
+	_, err = tx.Exec(`
+		UPDATE time_slots SET status = 'available'
+		WHERE time_slot_id IN (
+			SELECT time_slot_id FROM bookings
+			WHERE user_id = $1 AND time_slot_id IS NOT NULL
+		)
+	`, userID)
+	if err != nil {
+		return fmt.Errorf("failed to free timeslots: %w", err)
+	}
+
+	// Delete notifications linked to this user's bookings (FK: notifications.booking_id → bookings)
+	_, err = tx.Exec(`
+		DELETE FROM notifications
+		WHERE booking_id IN (
+			SELECT booking_id FROM bookings WHERE user_id = $1
+		)
+	`, userID)
+	if err != nil {
+		return fmt.Errorf("failed to delete user notifications: %w", err)
+	}
+
+	// Delete all bookings belonging to this user
+	_, err = tx.Exec(`DELETE FROM bookings WHERE user_id = $1`, userID)
+	if err != nil {
+		return fmt.Errorf("failed to delete user bookings: %w", err)
+	}
+
+	// Now delete the user (players, events, password_reset_tokens cascade automatically)
+	result, err := tx.Exec(`DELETE FROM users WHERE user_id = $1`, userID)
 	if err != nil {
 		return fmt.Errorf("failed to delete user: %w", err)
 	}
@@ -176,9 +217,12 @@ func (r *UserRepository) DeleteUser(userID int) error {
 	if err != nil {
 		return fmt.Errorf("failed to get rows affected: %w", err)
 	}
-
 	if rows == 0 {
 		return ErrUserNotFound
+	}
+
+	if err = tx.Commit(); err != nil {
+		return fmt.Errorf("failed to commit transaction: %w", err)
 	}
 
 	return nil
