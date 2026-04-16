@@ -48,7 +48,7 @@ export default function ManagePlayers() {
     };
 
     // Filter Logic
-    const filteredPlayers = players.filter(p =>
+    const filteredPlayers = (players || []).filter(p =>
         p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         p.email.toLowerCase().includes(searchTerm.toLowerCase())
     );

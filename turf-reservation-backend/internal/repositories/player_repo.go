@@ -88,7 +88,7 @@ func (r *PlayerRepository) GetSoloPlayers() ([]models.PlayerProfile, error) {
 	}
 	defer rows.Close()
 
-	var players []models.PlayerProfile
+	var players = []models.PlayerProfile{}
 	for rows.Next() {
 		var p models.PlayerProfile
 		err := rows.Scan(
@@ -136,7 +136,7 @@ func (r *PlayerRepository) GetAllPlayers() ([]models.PlayerProfile, error) {
 	}
 	defer rows.Close()
 
-	var players []models.PlayerProfile
+	var players = []models.PlayerProfile{}
 	for rows.Next() {
 		var p models.PlayerProfile
 		err := rows.Scan(

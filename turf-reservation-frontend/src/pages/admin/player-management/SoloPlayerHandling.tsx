@@ -176,7 +176,7 @@ export default function SoloPlayerHandling() {
                             <div className="p-12 text-center text-red-500 bg-red-50 rounded-xl border border-red-200">
                                 {error}
                             </div>
-                        ) : players.length > 0 ? (
+                        ) : (players || []).length > 0 ? (
                             players.map((player) => {
                                 const isSelected = selectedIds.includes(player.user_id);
                                 return (

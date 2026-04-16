@@ -87,7 +87,7 @@ func (r *TeamRepository) GetAllTeams() ([]models.Team, error) {
 	}
 	defer rows.Close()
 
-	var teams []models.Team
+	var teams = []models.Team{}
 	for rows.Next() {
 		var t models.Team
 		err := rows.Scan(

@@ -179,7 +179,7 @@ export default function CoachManagement() {
                         <div className="p-12 text-center text-red-500 bg-red-50">
                             <p className="font-semibold">{error}</p>
                         </div>
-                    ) : coaches.length === 0 ? (
+                    ) : (coaches || []).length === 0 ? (
                         <div className="p-16 flex flex-col items-center justify-center text-gray-400 gap-3">
                             <Users className="w-12 h-12 opacity-20" />
                             <p>No coaches registered yet.</p>

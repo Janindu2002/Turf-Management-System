@@ -38,7 +38,7 @@ func (r *TimeSlotRepository) GetByDate(date string) ([]*models.TimeSlot, error) 
 	}
 	defer rows.Close()
 
-	var slots []*models.TimeSlot
+	var slots = []*models.TimeSlot{}
 	for rows.Next() {
 		slot := &models.TimeSlot{}
 		err := rows.Scan(

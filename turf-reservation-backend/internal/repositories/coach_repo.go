@@ -111,7 +111,7 @@ func (r *CoachRepository) GetAllCoaches() ([]CoachPublicProfile, error) {
 	}
 	defer rows.Close()
 
-	var coaches []CoachPublicProfile
+	var coaches = []CoachPublicProfile{}
 	for rows.Next() {
 		var p CoachPublicProfile
 		err := rows.Scan(&p.UserID, &p.Name, &p.Email, &p.Specialization, &p.Availability, &p.HourlyRate)
@@ -169,7 +169,7 @@ func (r *CoachRepository) GetAllCoachesAdmin() ([]CoachAdminProfile, error) {
 	}
 	defer rows.Close()
 
-	var coaches []CoachAdminProfile
+	var coaches = []CoachAdminProfile{}
 	for rows.Next() {
 		var p CoachAdminProfile
 		err := rows.Scan(
