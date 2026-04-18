@@ -23,7 +23,13 @@ func NewEventService(eventRepo *repositories.EventRepository, timeslotRepo *repo
 // HostEvent creates a new event request with pending status
 func (s *EventService) HostEvent(event *models.Event) error {
 	event.Status = "pending"
-	return s.eventRepo.Create(event)
+	err := s.eventRepo.Create(event)
+	if err != nil {
+		return err
+	}
+
+	// Immediately block slots for the pending event
+	return s.timeslotRepo.BlockSlotsForEvent(event.StartDate, event.StartTime, event.EndDate, event.EndTime, event.EventName)
 }
 
 // GetAllPendingEvents returns all pending event requests in FIFO order

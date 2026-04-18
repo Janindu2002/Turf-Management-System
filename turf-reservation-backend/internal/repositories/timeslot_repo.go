@@ -105,7 +105,7 @@ func (r *TimeSlotRepository) EnsureSlotsExistForDate(dateStr string) error {
 		// Check if any approved event covers this slot
 		eventCheckQuery := `
 			SELECT event_name FROM events 
-			WHERE status = 'approved' 
+			WHERE status IN ('approved', 'pending') 
 			AND start_date <= $1 AND end_date >= $1
 			AND start_time::time <= $2 AND end_time::time > $2
 			LIMIT 1
