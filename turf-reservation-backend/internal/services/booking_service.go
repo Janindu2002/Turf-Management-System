@@ -138,6 +138,7 @@ func (s *BookingService) RescheduleBooking(bookingID int, newTimeSlotID int, use
 	// Update booking with new timeslot and reset status to pending
 	*booking.TimeSlotID = newTimeSlotID
 	booking.Status = "pending"
+	booking.IsRescheduled = true
 
 	// Apply new coach and price from request
 	booking.CoachID = coachID
@@ -164,12 +165,6 @@ func (s *BookingService) RescheduleBooking(bookingID int, newTimeSlotID int, use
 	err = s.timeslotRepo.UpdateStatus(newTimeSlotID, "booked")
 	if err != nil {
 		return err
-	}
-
-	// Notify user
-	enriched, _ := s.bookingRepo.GetByID(booking.BookingID)
-	if enriched != nil {
-		s.notificationService.NotifyBookingChange(enriched, "Updated")
 	}
 
 	return nil
@@ -208,7 +203,6 @@ func (s *BookingService) CancelBooking(bookingID int, userID int) error {
 	}
 
 	// Notify user
-	s.notificationService.NotifyBookingChange(booking, "Cancelled")
 
 	return nil
 }
@@ -247,9 +241,13 @@ func (s *BookingService) ApproveBooking(bookingID int) error {
 		return err
 	}
 
-	// Notify user if confirmed
+	// Notify user if fully confirmed
 	if isConfirmed {
-		s.notificationService.NotifyBookingChange(booking, "Confirmed")
+		changeType := "Confirmed"
+		if booking.IsRescheduled {
+			changeType = "Updated"
+		}
+		s.notificationService.NotifyBookingChange(booking, changeType)
 	}
 
 	return nil
@@ -322,7 +320,11 @@ func (s *BookingService) CoachApproveBooking(bookingID int, coachID int) error {
 
 	// Notify user if confirmed
 	if isConfirmed {
-		s.notificationService.NotifyBookingChange(booking, "Confirmed")
+		changeType := "Confirmed"
+		if booking.IsRescheduled {
+			changeType = "Updated"
+		}
+		s.notificationService.NotifyBookingChange(booking, changeType)
 	}
 
 	return nil

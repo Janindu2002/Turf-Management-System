@@ -135,5 +135,9 @@ func (s *NotificationService) checkAndSendReminders() {
 }
 
 func (s *NotificationService) formatBookingDetails(b *models.Booking) string {
-	return fmt.Sprintf("Turf: %s | Date: %s | Time: %s - %s", b.TurfName, b.SlotDate, b.StartTime, b.EndTime)
+	coachPart := ""
+	if b.CoachName != "" {
+		coachPart = fmt.Sprintf(" | Coach: %s", b.CoachName)
+	}
+	return fmt.Sprintf("Turf: %s%s | Date: %s | Time: %s - %s", b.TurfName, coachPart, b.SlotDate, b.StartTime, b.EndTime)
 }

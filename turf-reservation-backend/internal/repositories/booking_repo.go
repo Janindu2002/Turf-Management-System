@@ -18,8 +18,8 @@ func NewBookingRepository(db *sql.DB) *BookingRepository {
 // Create inserts a new booking record
 func (r *BookingRepository) Create(booking *models.Booking) error {
 	query := `
-		INSERT INTO bookings (user_id, time_slot_id, coach_id, event_id, status, coach_approval_status, admin_approval_status, total_price, payment_status)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+		INSERT INTO bookings (user_id, time_slot_id, coach_id, event_id, status, coach_approval_status, admin_approval_status, total_price, payment_status, is_rescheduled)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
 		RETURNING booking_id, booking_date
 	`
 	err := r.db.QueryRow(
@@ -33,6 +33,7 @@ func (r *BookingRepository) Create(booking *models.Booking) error {
 		booking.AdminApprovalStatus,
 		booking.TotalPrice,
 		booking.PaymentStatus,
+		booking.IsRescheduled,
 	).Scan(&booking.BookingID, &booking.BookingDate)
 
 	if err != nil {
@@ -45,7 +46,7 @@ func (r *BookingRepository) Create(booking *models.Booking) error {
 func (r *BookingRepository) GetByID(id int) (*models.Booking, error) {
 	query := `
 		SELECT b.booking_id, b.user_id, b.time_slot_id, b.coach_id, b.event_id, b.booking_date, b.status, 
-		       b.coach_approval_status, b.admin_approval_status, b.total_price, b.payment_status,
+		       b.coach_approval_status, b.admin_approval_status, b.total_price, b.payment_status, b.is_rescheduled,
 		       TO_CHAR(ts.date, 'YYYY-MM-DD'), TO_CHAR(ts.start_time, 'HH24:MI'), TO_CHAR(ts.end_time, 'HH24:MI'),
 		       c.name as coach_name, t.name as turf_name,
 		       p.name as player_name, p.email as player_email
@@ -70,6 +71,7 @@ func (r *BookingRepository) GetByID(id int) (*models.Booking, error) {
 		&booking.AdminApprovalStatus,
 		&booking.TotalPrice,
 		&booking.PaymentStatus,
+		&booking.IsRescheduled,
 		&booking.SlotDate,
 		&booking.StartTime,
 		&booking.EndTime,
@@ -95,7 +97,7 @@ func (r *BookingRepository) GetByID(id int) (*models.Booking, error) {
 func (r *BookingRepository) ListByUser(userID int) ([]*models.Booking, error) {
 	query := `
 		SELECT b.booking_id, b.user_id, b.time_slot_id, b.coach_id, b.event_id, b.booking_date, b.status, 
-		       b.coach_approval_status, b.admin_approval_status, b.total_price, b.payment_status,
+		       b.coach_approval_status, b.admin_approval_status, b.total_price, b.payment_status, b.is_rescheduled,
 		       TO_CHAR(ts.date, 'YYYY-MM-DD'), TO_CHAR(ts.start_time, 'HH24:MI'), TO_CHAR(ts.end_time, 'HH24:MI'),
 		       u.name as coach_name, t.name as turf_name
 		FROM bookings b
@@ -127,6 +129,7 @@ func (r *BookingRepository) ListByUser(userID int) ([]*models.Booking, error) {
 			&b.AdminApprovalStatus,
 			&b.TotalPrice,
 			&b.PaymentStatus,
+			&b.IsRescheduled,
 			&b.SlotDate,
 			&b.StartTime,
 			&b.EndTime,
@@ -148,7 +151,7 @@ func (r *BookingRepository) ListByUser(userID int) ([]*models.Booking, error) {
 func (r *BookingRepository) ListAllPending() ([]*models.Booking, error) {
 	query := `
 		SELECT b.booking_id, b.user_id, b.time_slot_id, b.coach_id, b.event_id, b.booking_date, b.status, 
-		       b.coach_approval_status, b.admin_approval_status, b.total_price, b.payment_status,
+		       b.coach_approval_status, b.admin_approval_status, b.total_price, b.payment_status, b.is_rescheduled,
 		       TO_CHAR(ts.date, 'YYYY-MM-DD'), TO_CHAR(ts.start_time, 'HH24:MI'), TO_CHAR(ts.end_time, 'HH24:MI'),
 		       u.name, u.email, t.name as turf_name
 		FROM bookings b
@@ -179,6 +182,7 @@ func (r *BookingRepository) ListAllPending() ([]*models.Booking, error) {
 			&b.AdminApprovalStatus,
 			&b.TotalPrice,
 			&b.PaymentStatus,
+			&b.IsRescheduled,
 			&b.SlotDate,
 			&b.StartTime,
 			&b.EndTime,
@@ -199,8 +203,9 @@ func (r *BookingRepository) Update(booking *models.Booking) error {
 	query := `
 		UPDATE bookings
 		SET user_id = $1, time_slot_id = $2, coach_id = $3, event_id = $4, status = $5, 
-		    coach_approval_status = $6, admin_approval_status = $7, total_price = $8, payment_status = $9
-		WHERE booking_id = $10
+		    coach_approval_status = $6, admin_approval_status = $7, total_price = $8, payment_status = $9,
+		    is_rescheduled = $10
+		WHERE booking_id = $11
 	`
 	_, err := r.db.Exec(
 		query,
@@ -213,6 +218,7 @@ func (r *BookingRepository) Update(booking *models.Booking) error {
 		booking.AdminApprovalStatus,
 		booking.TotalPrice,
 		booking.PaymentStatus,
+		booking.IsRescheduled,
 		booking.BookingID,
 	)
 
@@ -255,7 +261,7 @@ func (r *BookingRepository) DeleteCancelled(bookingID int, userID int) error {
 func (r *BookingRepository) ListByCoach(coachID int) ([]*models.Booking, error) {
 	query := `
 		SELECT b.booking_id, b.user_id, b.time_slot_id, b.coach_id, b.event_id, b.booking_date, b.status, 
-		       b.coach_approval_status, b.admin_approval_status, b.total_price, b.payment_status,
+		       b.coach_approval_status, b.admin_approval_status, b.total_price, b.payment_status, b.is_rescheduled,
 		       TO_CHAR(ts.date, 'YYYY-MM-DD'), TO_CHAR(ts.start_time, 'HH24:MI'), TO_CHAR(ts.end_time, 'HH24:MI'),
 		       u.name as player_name, u.email as player_email, t.name as turf_name
 		FROM bookings b
@@ -286,6 +292,7 @@ func (r *BookingRepository) ListByCoach(coachID int) ([]*models.Booking, error) 
 			&b.AdminApprovalStatus,
 			&b.TotalPrice,
 			&b.PaymentStatus,
+			&b.IsRescheduled,
 			&b.SlotDate,
 			&b.StartTime,
 			&b.EndTime,
@@ -305,7 +312,7 @@ func (r *BookingRepository) ListByCoach(coachID int) ([]*models.Booking, error) 
 func (r *BookingRepository) ListAll() ([]*models.Booking, error) {
 	query := `
 		SELECT b.booking_id, b.user_id, b.time_slot_id, b.coach_id, b.event_id, b.booking_date, b.status, 
-		       b.coach_approval_status, b.admin_approval_status, b.total_price, b.payment_status,
+		       b.coach_approval_status, b.admin_approval_status, b.total_price, b.payment_status, b.is_rescheduled,
 		       TO_CHAR(ts.date, 'YYYY-MM-DD'), TO_CHAR(ts.start_time, 'HH24:MI'), TO_CHAR(ts.end_time, 'HH24:MI'),
 		       u.name as player_name, u.email as player_email, t.name as turf_name, c.name as coach_name
 		FROM bookings b
@@ -337,6 +344,7 @@ func (r *BookingRepository) ListAll() ([]*models.Booking, error) {
 			&b.AdminApprovalStatus,
 			&b.TotalPrice,
 			&b.PaymentStatus,
+			&b.IsRescheduled,
 			&b.SlotDate,
 			&b.StartTime,
 			&b.EndTime,

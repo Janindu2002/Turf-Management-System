@@ -17,6 +17,7 @@ type Booking struct {
 	AdminApprovalStatus string    `json:"admin_approval_status"`
 	TotalPrice          float64   `json:"total_price"`
 	PaymentStatus       string    `json:"payment_status"`
+	IsRescheduled       bool      `json:"is_rescheduled"`
 	// Enriched fields from JOIN with time_slots
 	SlotDate  string `json:"slot_date,omitempty"`
 	StartTime string `json:"start_time,omitempty"`

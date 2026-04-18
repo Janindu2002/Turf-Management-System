@@ -153,6 +153,8 @@ func (s *EmailService) SendBookingStatusEmail(to, name, status, bookingDetails s
 		statusColor = "#ef4444" // red
 	case "Updated":
 		statusColor = "#3b82f6" // blue
+	case "Approved":
+		statusColor = "#10b981" // emerald
 	}
 
 	body := fmt.Sprintf(`
