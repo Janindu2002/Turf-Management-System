@@ -20,6 +20,7 @@ BEGIN
 END;
 $$ language 'plpgsql';
 
+DROP TRIGGER IF EXISTS update_players_modtime ON players;
 CREATE TRIGGER update_players_modtime
     BEFORE UPDATE ON players
     FOR EACH ROW

@@ -42,7 +42,7 @@ func main() {
 	bookingService := services.NewBookingService(bookingRepo, timeSlotRepo, notificationService)
 	eventService := services.NewEventService(eventRepo, timeSlotRepo)
 	playerService := services.NewPlayerService(playerRepo, userRepo)
-	teamService := services.NewTeamService(teamRepo)
+	teamService := services.NewTeamService(teamRepo, emailService, userRepo)
 	reportService := services.NewReportService(reportRepo)
 
 	// Ensure timeslots exist for the next 7 days

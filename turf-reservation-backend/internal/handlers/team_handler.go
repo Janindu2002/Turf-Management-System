@@ -1,9 +1,12 @@
 package handlers
 
 import (
+	"errors"
 	"net/http"
 	"strconv"
+	"turf-reservation-backend/internal/middleware"
 	"turf-reservation-backend/internal/models"
+	"turf-reservation-backend/internal/repositories"
 	"turf-reservation-backend/internal/services"
 
 	"github.com/gin-gonic/gin"
@@ -33,6 +36,36 @@ func (h *TeamHandler) CreateTeam(c *gin.Context) {
 		"success": true,
 		"data":    team,
 		"message": "Team created successfully",
+	})
+}
+
+func (h *TeamHandler) JoinTeam(c *gin.Context) {
+	idParam := c.Param("id")
+	teamID, err := strconv.Atoi(idParam)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid team ID"})
+		return
+	}
+
+	userID, exists := middleware.GetUserID(c)
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Authentication required"})
+		return
+	}
+
+	err = h.teamService.JoinTeam(teamID, userID)
+	if err != nil {
+		if errors.Is(err, repositories.ErrTeamFull) || errors.Is(err, repositories.ErrPlayerHasTeam) || errors.Is(err, repositories.ErrTeamNotFound) {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "You have joined the team!",
 	})
 }
 

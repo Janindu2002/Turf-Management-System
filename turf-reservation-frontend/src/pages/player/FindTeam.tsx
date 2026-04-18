@@ -33,21 +33,21 @@ export default function FindTeam() {
     const [searchTerm, setSearchTerm] = useState("");
     const [requestedTeams, setRequestedTeams] = useState<number[]>([]);
 
-    useEffect(() => {
-        const fetchTeams = async () => {
-            try {
-                setLoading(true);
-                const data = await teamAPI.getTeams();
-                setTeams(data || []);
-                setError(null);
-            } catch (err) {
-                console.error("Failed to fetch teams:", err);
-                setError("Failed to load teams. Please try again.");
-            } finally {
-                setLoading(false);
-            }
-        };
+    const fetchTeams = async () => {
+        try {
+            setLoading(true);
+            const data = await teamAPI.getTeams();
+            setTeams(data || []);
+            setError(null);
+        } catch (err) {
+            console.error("Failed to fetch teams:", err);
+            setError("Failed to load teams. Please try again.");
+        } finally {
+            setLoading(false);
+        }
+    };
 
+    useEffect(() => {
         fetchTeams();
     }, []);
 
@@ -58,9 +58,17 @@ export default function FindTeam() {
     });
 
     // Handle Join Request
-    const handleJoinRequest = (teamId: number) => {
-        // In a real app, API call goes here
-        setRequestedTeams(prev => [...prev, teamId]);
+    const handleJoinRequest = async (teamId: number) => {
+        try {
+            const response = await teamAPI.joinTeam(teamId);
+            setRequestedTeams(prev => [...prev, teamId]);
+            await fetchTeams();
+            window.alert(response.message || "You have joined the team!");
+        } catch (err) {
+            console.error("Failed to join team:", err);
+            const message = err instanceof Error ? err.message : "Unable to join team. Please try again.";
+            window.alert(message);
+        }
     };
 
     return (

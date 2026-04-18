@@ -11,5 +11,5 @@ CREATE TABLE IF NOT EXISTS security_logs (
 );
 
 -- Index for faster queries on event types and users
-CREATE INDEX idx_security_logs_event_type ON security_logs(event_type);
-CREATE INDEX idx_security_logs_user_id ON security_logs(user_id);
+CREATE INDEX IF NOT EXISTS idx_security_logs_event_type ON security_logs(event_type);
+CREATE INDEX IF NOT EXISTS idx_security_logs_user_id ON security_logs(user_id);

@@ -207,7 +207,13 @@ func (r *UserRepository) DeleteUser(userID int) error {
 		return fmt.Errorf("failed to delete user bookings: %w", err)
 	}
 
-	// Now delete the user (players, events, password_reset_tokens cascade automatically)
+	// Delete events belonging to this user (explicitly because DB constraint is being difficult)
+	_, err = tx.Exec(`DELETE FROM events WHERE user_id = $1`, userID)
+	if err != nil {
+		return fmt.Errorf("failed to delete user events: %w", err)
+	}
+
+	// Now delete the user (players and password_reset_tokens cascade automatically)
 	result, err := tx.Exec(`DELETE FROM users WHERE user_id = $1`, userID)
 	if err != nil {
 		return fmt.Errorf("failed to delete user: %w", err)

@@ -29,6 +29,7 @@ export default function SoloPlayerHandling() {
     const [totalMembers, setTotalMembers] = useState(11);
     const [captainName, setCaptainName] = useState("");
     const [captainContact, setCaptainContact] = useState("");
+    const [captainEmail, setCaptainEmail] = useState("");
     const [lookingPositions, setLookingPositions] = useState("");
     const [loading, setLoading] = useState(true);
     const [fetchingTeams, setFetchingTeams] = useState(true);
@@ -107,6 +108,7 @@ export default function SoloPlayerHandling() {
                 current_member: selectedIds.length,
                 captain_name: captainName,
                 captain_contact: captainContact,
+                captain_email: captainEmail,
                 looking_positions: lookingPositions,
                 player_ids: selectedIds
             });
@@ -117,6 +119,7 @@ export default function SoloPlayerHandling() {
             setTeamName("");
             setCaptainName("");
             setCaptainContact("");
+            setCaptainEmail("");
             setLookingPositions("");
             fetchPlayers(); // Refresh player pool
             fetchTeams(); // Refresh ledger
@@ -289,7 +292,18 @@ export default function SoloPlayerHandling() {
                                             required
                                             value={captainContact}
                                             onChange={(e) => setCaptainContact(e.target.value)}
-                                            placeholder="Phone or Email"
+                                            placeholder="Phone"
+                                            className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 outline-none"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="text-sm font-semibold text-gray-700 block mb-1">Captain Email</label>
+                                        <input
+                                            type="email"
+                                            required
+                                            value={captainEmail}
+                                            onChange={(e) => setCaptainEmail(e.target.value)}
+                                            placeholder="captain@example.com"
                                             className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 outline-none"
                                         />
                                     </div>

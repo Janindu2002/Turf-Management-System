@@ -99,6 +99,7 @@ func SetupRouter(authHandler *handlers.AuthHandler, availabilityHandler *handler
 
 			// Team routes
 			common.GET("/teams", teamHandler.GetTeams)
+			common.POST("/teams/:id/join", teamHandler.JoinTeam)
 		}
 
 		// Admin routes

@@ -1,6 +1,7 @@
 package services
 
 import (
+	"fmt"
 	"log"
 	"time"
 	"turf-reservation-backend/internal/models"
@@ -8,11 +9,13 @@ import (
 )
 
 type TeamService struct {
-	teamRepo *repositories.TeamRepository
+	teamRepo     *repositories.TeamRepository
+	emailService *EmailService
+	userRepo     *repositories.UserRepository
 }
 
-func NewTeamService(teamRepo *repositories.TeamRepository) *TeamService {
-	return &TeamService{teamRepo: teamRepo}
+func NewTeamService(teamRepo *repositories.TeamRepository, emailService *EmailService, userRepo *repositories.UserRepository) *TeamService {
+	return &TeamService{teamRepo: teamRepo, emailService: emailService, userRepo: userRepo}
 }
 
 func (s *TeamService) CreateTeam(team *models.Team) error {
@@ -25,6 +28,34 @@ func (s *TeamService) GetAllTeams() ([]models.Team, error) {
 
 func (s *TeamService) DeleteTeam(teamID int) error {
 	return s.teamRepo.DeleteTeam(teamID)
+}
+
+func (s *TeamService) JoinTeam(teamID, playerUserID int) error {
+	team, err := s.teamRepo.JoinTeam(teamID, playerUserID)
+	if err != nil {
+		return err
+	}
+
+	player, err := s.userRepo.GetUserByID(playerUserID)
+	if err != nil {
+		return fmt.Errorf("failed to load player details: %w", err)
+	}
+
+	go func() {
+		if err := s.emailService.SendTeamJoinNotification(
+			player.Email,
+			player.Name,
+			player.Phone,
+			team.CaptainName,
+			team.CaptainContact,
+			team.CaptainEmail,
+			team.TeamName,
+		); err != nil {
+			log.Printf("[TeamService] failed to send join notification: %v", err)
+		}
+	}()
+
+	return nil
 }
 
 func (s *TeamService) StartCleanupWorker() {

@@ -85,12 +85,68 @@ func (s *EmailService) SendVerificationOTP(to, otp string) error {
 	return nil
 }
 
+func (s *EmailService) SendTeamJoinNotification(playerEmail, playerName, playerPhone, captainName, captainPhone, captainEmail, teamName string) error {
+	fromHeader := fmt.Sprintf("From: %s\n", s.config.SMTPFrom)
+	mime := "MIME-version: 1.0;\nContent-Type: text/html; charset=\"UTF-8\";\n\n"
+
+	playerSubject := "Subject: You've Joined a Team! 🎉\n"
+	playerBody := fmt.Sprintf(`
+		<html>
+		<body style="font-family: sans-serif; color: #374151;">
+			<div style="max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e5e7eb; border-radius: 8px;">
+				<h2 style="color: #10b981;">You've Joined a Team! 🎉</h2>
+				<p>Hi %s,</p>
+				<p>Great news! You have successfully joined <strong>%s</strong>.</p>
+				<p>Captain: %s</p>
+				<p>Contact: %s | %s</p>
+				<p>Get in touch with your captain for further details!</p>
+				<hr style="border: 0; border-top: 1px solid #e5e7eb; margin: 20px 0;">
+				<p style="font-size: 14px; color: #9ca3af;">Thanks,<br>Turf Reservation Team</p>
+			</div>
+		</body>
+		</html>
+	`, playerName, teamName, captainName, captainPhone, captainEmail)
+
+	captainSubject := "Subject: New Player Joined Your Team 🏆\n"
+	captainBody := fmt.Sprintf(`
+		<html>
+		<body style="font-family: sans-serif; color: #374151;">
+			<div style="max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e5e7eb; border-radius: 8px;">
+				<h2 style="color: #10b981;">New Player Joined Your Team 🏆</h2>
+				<p>Hi %s,</p>
+				<p>A new player has joined your team <strong>%s</strong>!</p>
+				<p>Player: %s</p>
+				<p>Contact: %s | %s</p>
+				<p>Welcome them aboard!</p>
+				<hr style="border: 0; border-top: 1px solid #e5e7eb; margin: 20px 0;">
+				<p style="font-size: 14px; color: #9ca3af;">Thanks,<br>Turf Reservation Team</p>
+			</div>
+		</body>
+		</html>
+	`, captainName, teamName, playerName, playerPhone, playerEmail)
+
+	playerMsg := []byte(fromHeader + playerSubject + mime + playerBody)
+	captainMsg := []byte(fromHeader + captainSubject + mime + captainBody)
+	addr := fmt.Sprintf("%s:%s", s.config.SMTPHost, s.config.SMTPPort)
+	auth := smtp.PlainAuth("", s.config.SMTPUser, s.config.SMTPPass, s.config.SMTPHost)
+
+	if err := smtp.SendMail(addr, auth, s.config.SMTPFrom, []string{playerEmail}, playerMsg); err != nil {
+		return fmt.Errorf("failed to send player join notification: %w", err)
+	}
+
+	if err := smtp.SendMail(addr, auth, s.config.SMTPFrom, []string{captainEmail}, captainMsg); err != nil {
+		return fmt.Errorf("failed to send captain join notification: %w", err)
+	}
+
+	return nil
+}
+
 // SendBookingStatusEmail sends an email update about a booking's status (Confirmed, Cancelled, Updated)
 func (s *EmailService) SendBookingStatusEmail(to, name, status, bookingDetails string) error {
 	fromHeader := fmt.Sprintf("From: %s\n", s.config.SMTPFrom)
 	subject := fmt.Sprintf("Subject: Booking %s - Turf Reservation\n", status)
 	mime := "MIME-version: 1.0;\nContent-Type: text/html; charset=\"UTF-8\";\n\n"
-	
+
 	statusColor := "#10b981" // Default emerald (Confirmed/Created)
 	switch status {
 	case "Cancelled":
@@ -135,7 +191,7 @@ func (s *EmailService) SendBookingReminderEmail(to, name, bookingDetails string)
 	fromHeader := fmt.Sprintf("From: %s\n", s.config.SMTPFrom)
 	subject := "Subject: Reminder: Your Turf Booking is in 6 Hours!\n"
 	mime := "MIME-version: 1.0;\nContent-Type: text/html; charset=\"UTF-8\";\n\n"
-	
+
 	body := fmt.Sprintf(`
 		<html>
 		<body style="font-family: sans-serif; color: #374151;">

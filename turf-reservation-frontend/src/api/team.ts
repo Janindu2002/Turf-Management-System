@@ -9,6 +9,7 @@ export interface Team {
     current_member: number;
     captain_name: string;
     captain_contact: string;
+    captain_email?: string;
     looking_positions: string;
     player_ids: number[];
 }
@@ -22,6 +23,11 @@ export const teamAPI = {
     getTeams: async () => {
         const response = await client.get("/api/teams");
         return response.data.data;
+    },
+
+    joinTeam: async (teamId: number) => {
+        const response = await client.post<{ success: boolean; message: string }>(`/api/teams/${teamId}/join`);
+        return response.data;
     },
 
     deleteTeam: async (id: number) => {
