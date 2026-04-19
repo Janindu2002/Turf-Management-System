@@ -66,7 +66,7 @@ func (s *ReportService) GenerateCSVReport(adminID int, period string) ([]byte, s
 	}
 	writer.Flush()
 
-	// 3. Log the report in DB
+	// 3. Log the report in DB (non-blocking)
 	report := &models.Report{
 		AdminID:    &adminID,
 		ReportType: period,
@@ -74,7 +74,9 @@ func (s *ReportService) GenerateCSVReport(adminID int, period string) ([]byte, s
 	}
 	err = s.reportRepo.Create(report)
 	if err != nil {
-		return nil, "", fmt.Errorf("failed to log report: %w", err)
+		// We log the error to the server console but don't fail the download
+		// because the user should still get their data even if the audit log fails.
+		fmt.Printf("Audit log failure: failed to log report generation: %v\n", err)
 	}
 
 	fileName := fmt.Sprintf("turf_report_%s_%s.csv", period, endDate.Format("20060102"))
