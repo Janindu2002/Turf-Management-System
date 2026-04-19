@@ -35,6 +35,7 @@ export default function SoloPlayerHandling() {
     const [fetchingTeams, setFetchingTeams] = useState(true);
     const [teams, setTeams] = useState<any[]>([]);
     const [error, setError] = useState<string | null>(null);
+    const [formErrors, setFormErrors] = useState<Record<string, string>>({});
 
     /* =======================
        Effects
@@ -96,24 +97,69 @@ export default function SoloPlayerHandling() {
         );
     };
 
+    const validateForm = () => {
+        const errors: Record<string, string> = {};
+
+        if (teamName.trim().length < 3) {
+            errors.teamName = "Team name must be at least 3 characters.";
+        } else if (teamName.trim().length > 30) {
+            errors.teamName = "Team name cannot exceed 30 characters.";
+        } else if (teams.some(t => t.team_name.toLowerCase() === teamName.trim().toLowerCase())) {
+            errors.teamName = "A team with this name already exists.";
+        }
+
+        if (captainName.trim().length < 3) {
+            errors.captainName = "Captain name must be at least 3 characters.";
+        } else if (!/^[a-zA-Z\s]+$/.test(captainName.trim())) {
+            errors.captainName = "Name can only contain letters and spaces.";
+        }
+
+        const phoneClean = captainContact.replace(/\D/g, "");
+        if (phoneClean.length !== 10) {
+            errors.captainContact = "Phone number must be exactly 10 digits.";
+        }
+
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(captainEmail.trim())) {
+            errors.captainEmail = "Please enter a valid email address.";
+        }
+
+        if (totalMembers !== 11) {
+            errors.totalMembers = "Total members must be exactly 11 for a standard hockey team.";
+        }
+
+        if (!lookingPositions.trim()) {
+            errors.lookingPositions = "Please specify which positions you are looking for.";
+        }
+
+        setFormErrors(errors);
+        return Object.keys(errors).length === 0;
+    };
+
     const handleCreateTeam = async (e: React.FormEvent) => {
         e.preventDefault();
+        setFormErrors({});
+
+        if (!validateForm()) {
+            return;
+        }
+
         try {
             setLoading(true);
             await teamAPI.createTeam({
-                team_name: teamName,
+                team_name: teamName.trim(),
                 team_skill_level: skillLevel,
-                turf_name: "Astro Turf Main", // Default or could be a field
+                turf_name: "Astro Turf Main",
                 total_member: totalMembers,
                 current_member: selectedIds.length,
-                captain_name: captainName,
-                captain_contact: captainContact,
-                captain_email: captainEmail,
+                captain_name: captainName.trim(),
+                captain_contact: captainContact.replace(/\D/g, ""),
+                captain_email: captainEmail.trim(),
                 looking_positions: lookingPositions,
                 player_ids: selectedIds
             });
             
-            alert(`Team "${teamName}" created successfully with ${selectedIds.length} players!`);
+            alert(`Team "${teamName}" created successfully!`);
             setSelectedIds([]);
             setIsCreating(false);
             setTeamName("");
@@ -121,8 +167,9 @@ export default function SoloPlayerHandling() {
             setCaptainContact("");
             setCaptainEmail("");
             setLookingPositions("");
-            fetchPlayers(); // Refresh player pool
-            fetchTeams(); // Refresh ledger
+            setFormErrors({});
+            fetchPlayers();
+            fetchTeams();
         } catch (err) {
             console.error("Failed to create team:", err);
             alert("Failed to create team. Please try again.");
@@ -241,12 +288,12 @@ export default function SoloPlayerHandling() {
                                         <label className="text-sm font-semibold text-gray-700 block mb-1">Team Name</label>
                                         <input
                                             type="text"
-                                            required
                                             value={teamName}
                                             onChange={(e) => setTeamName(e.target.value)}
                                             placeholder="e.g. Mixed Team A"
-                                            className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 outline-none"
+                                            className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 outline-none transition-colors ${formErrors.teamName ? 'border-red-500 bg-red-50' : 'border-gray-200'}`}
                                         />
+                                        {formErrors.teamName && <p className="text-[10px] text-red-500 font-bold mt-1 uppercase tracking-tight">{formErrors.teamName}</p>}
                                     </div>
                                     <div className="grid grid-cols-2 gap-4">
                                         <div>
@@ -254,7 +301,7 @@ export default function SoloPlayerHandling() {
                                             <select
                                                 value={skillLevel}
                                                 onChange={(e) => setSkillLevel(e.target.value)}
-                                                className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 outline-none"
+                                                className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-500 outline-none"
                                             >
                                                 <option value="Beginner">Beginner</option>
                                                 <option value="Intermediate">Intermediate</option>
@@ -266,46 +313,47 @@ export default function SoloPlayerHandling() {
                                             <label className="text-sm font-semibold text-gray-700 block mb-1">Total Needed</label>
                                             <input
                                                 type="number"
-                                                required
-                                                min={selectedIds.length}
                                                 value={totalMembers}
-                                                onChange={(e) => setTotalMembers(parseInt(e.target.value))}
-                                                className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 outline-none"
+                                                onChange={(e) => setTotalMembers(parseInt(e.target.value) || 0)}
+                                                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 outline-none transition-colors ${formErrors.totalMembers ? 'border-red-500 bg-red-50' : 'border-gray-200'}`}
                                             />
+                                            {formErrors.totalMembers && <p className="text-[10px] text-red-500 font-bold mt-1 uppercase tracking-tight">{formErrors.totalMembers}</p>}
                                         </div>
                                     </div>
                                     <div>
                                         <label className="text-sm font-semibold text-gray-700 block mb-1">Captain Name</label>
                                         <input
                                             type="text"
-                                            required
                                             value={captainName}
                                             onChange={(e) => setCaptainName(e.target.value)}
                                             placeholder="Full Name"
-                                            className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 outline-none"
+                                            className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 outline-none transition-colors ${formErrors.captainName ? 'border-red-500 bg-red-50' : 'border-gray-200'}`}
                                         />
+                                        {formErrors.captainName && <p className="text-[10px] text-red-500 font-bold mt-1 uppercase tracking-tight">{formErrors.captainName}</p>}
                                     </div>
-                                    <div>
-                                        <label className="text-sm font-semibold text-gray-700 block mb-1">Captain Contact</label>
-                                        <input
-                                            type="text"
-                                            required
-                                            value={captainContact}
-                                            onChange={(e) => setCaptainContact(e.target.value)}
-                                            placeholder="Phone"
-                                            className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 outline-none"
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className="text-sm font-semibold text-gray-700 block mb-1">Captain Email</label>
-                                        <input
-                                            type="email"
-                                            required
-                                            value={captainEmail}
-                                            onChange={(e) => setCaptainEmail(e.target.value)}
-                                            placeholder="captain@example.com"
-                                            className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 outline-none"
-                                        />
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div>
+                                            <label className="text-sm font-semibold text-gray-700 block mb-1">Captain Contact</label>
+                                            <input
+                                                type="text"
+                                                value={captainContact}
+                                                onChange={(e) => setCaptainContact(e.target.value.replace(/\D/g, '').slice(0, 10))}
+                                                placeholder="10 Digits"
+                                                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 outline-none transition-colors ${formErrors.captainContact ? 'border-red-500 bg-red-50' : 'border-gray-200'}`}
+                                            />
+                                            {formErrors.captainContact && <p className="text-[10px] text-red-500 font-bold mt-1 uppercase tracking-tight">{formErrors.captainContact}</p>}
+                                        </div>
+                                        <div>
+                                            <label className="text-sm font-semibold text-gray-700 block mb-1">Captain Email</label>
+                                            <input
+                                                type="text"
+                                                value={captainEmail}
+                                                onChange={(e) => setCaptainEmail(e.target.value)}
+                                                placeholder="email@example.com"
+                                                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 outline-none transition-colors ${formErrors.captainEmail ? 'border-red-500 bg-red-50' : 'border-gray-200'}`}
+                                            />
+                                            {formErrors.captainEmail && <p className="text-[10px] text-red-500 font-bold mt-1 uppercase tracking-tight">{formErrors.captainEmail}</p>}
+                                        </div>
                                     </div>
                                     <div>
                                         <label className="text-sm font-semibold text-gray-700 block mb-1">Looking For (Positions)</label>
@@ -314,14 +362,15 @@ export default function SoloPlayerHandling() {
                                             onChange={(e) => setLookingPositions(e.target.value)}
                                             placeholder="e.g. Defender, Striker"
                                             rows={2}
-                                            className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 outline-none resize-none"
+                                            className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 outline-none resize-none transition-colors ${formErrors.lookingPositions ? 'border-red-500 bg-red-50' : 'border-gray-200'}`}
                                         />
+                                        {formErrors.lookingPositions && <p className="text-[10px] text-red-500 font-bold mt-1 uppercase tracking-tight">{formErrors.lookingPositions}</p>}
                                     </div>
                                     <div className="flex gap-2">
                                         <button
                                             type="button"
-                                            onClick={() => setIsCreating(false)}
-                                            className="flex-1 py-2 border rounded-lg text-gray-600 font-semibold hover:bg-gray-50"
+                                            onClick={() => { setIsCreating(false); setFormErrors({}); }}
+                                            className="flex-1 py-2 border rounded-lg text-gray-600 font-semibold hover:bg-gray-50 transition-colors"
                                         >
                                             Cancel
                                         </button>

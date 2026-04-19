@@ -71,6 +71,25 @@ export default function EventHosting() {
                 throw new Error("Please fill in all required fields.");
             }
 
+            // 1. Working Hours Validation (08:00 - 21:00)
+            if (formData.startTime < "08:00" || formData.startTime > "21:00") {
+                throw new Error("Start time must be between 08:00 AM and 09:00 PM.");
+            }
+            if (formData.endTime < "08:00" || formData.endTime > "21:00") {
+                throw new Error("End time must be between 08:00 AM and 09:00 PM.");
+            }
+
+            // 2. Maximum Participants Validation
+            const participants = parseInt(formData.expectedParticipants);
+            if (!isNaN(participants) && participants > 200) {
+                throw new Error("Expected participants cannot exceed 200.");
+            }
+
+            // 3. Chronological Time Check (End time must be after start time on the same day)
+            if (formData.startDate === formData.endDate && formData.startTime >= formData.endTime) {
+                throw new Error("End time must be after the start time on the same day.");
+            }
+
             // API Call
             await eventAPI.hostEvent({
                 ...formData,
