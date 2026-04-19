@@ -102,12 +102,15 @@ func (r *TimeSlotRepository) EnsureSlotsExistForDate(dateStr string) error {
 		// Determine initial status based on approved events
 		status := "available"
 		var eventName string
-		// Check if any approved event covers this slot
+		// Check if any approved or pending event covers this exact (date, time) point
 		eventCheckQuery := `
 			SELECT event_name FROM events 
 			WHERE status IN ('approved', 'pending') 
-			AND start_date <= $1 AND end_date >= $1
-			AND start_time::time <= $2 AND end_time::time > $2
+			AND (
+				(start_date < $1 OR (start_date = $1 AND start_time <= $2))
+				AND
+				(end_date > $1 OR (end_date = $1 AND end_time > $2))
+			)
 			LIMIT 1
 		`
 		slotTimeStr := startTime.Format("15:04:05")
@@ -178,8 +181,8 @@ func (r *TimeSlotRepository) BlockSlotsForEvent(startDate, startTime, endDate, e
 	query := `
 		UPDATE time_slots 
 		SET status = 'booked', blocked_reason = $5
-		WHERE date >= $1 AND date <= $2
-		AND start_time::time >= $3 AND start_time::time < $4
+		WHERE (date > $1 OR (date = $1 AND start_time::time >= $3))
+		  AND (date < $2 OR (date = $2 AND start_time::time < $4))
 	`
 	_, err := r.db.Exec(query, startDate, endDate, startTime, endTime, eventName)
 	return err
@@ -224,9 +227,9 @@ func (r *TimeSlotRepository) ReleaseSlotsForEvent(startDate, startTime, endDate,
 	query := `
 		UPDATE time_slots 
 		SET status = 'available', blocked_reason = ''
-		WHERE date >= $1 AND date <= $2
-		AND start_time::time >= $3 AND start_time::time < $4
-		AND blocked_reason = $5
+		WHERE (date > $1 OR (date = $1 AND start_time::time >= $3))
+		  AND (date < $2 OR (date = $2 AND start_time::time < $4))
+		  AND blocked_reason = $5
 	`
 	_, err := r.db.Exec(query, startDate, endDate, startTime, endTime, eventName)
 	return err
