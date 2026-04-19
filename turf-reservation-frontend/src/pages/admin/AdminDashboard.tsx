@@ -229,20 +229,22 @@ export default function AdminDashboard() {
                                 {slots.map((slot) => (
                                     <div
                                         key={slot.time_slot_id}
-                                        className={`p-4 flex flex-col items-center justify-center gap-2 transition-colors ${slot.status === 'booked' ? 'bg-purple-50' : 'bg-white hover:bg-gray-50'
-                                            }`}
+                                        className={`p-4 flex flex-col items-center justify-center gap-2 transition-colors ${
+                                            (slot.status === 'booked' || slot.status === 'blocked') ? 'bg-purple-50' : 'bg-white hover:bg-gray-50'
+                                        }`}
                                     >
                                         <div className="flex items-center gap-1.5 text-xs font-bold text-gray-500">
                                             <Clock className="w-3.5 h-3.5" />
                                             {formatTime(slot.start_time)}
                                         </div>
-                                        <div className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${slot.status === 'booked' ? 'bg-purple-100 text-purple-700' : 'bg-green-100 text-green-700'
-                                            }`}>
+                                        <div className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
+                                            (slot.status === 'booked' || slot.status === 'blocked') ? 'bg-purple-100 text-purple-700' : 'bg-green-100 text-green-700'
+                                        }`}>
                                             {slot.status}
                                         </div>
-                                        {slot.status === 'booked' && (
+                                        {(slot.status === 'booked' || slot.status === 'blocked') && (
                                             <p className="text-[10px] text-purple-900 font-bold text-center leading-tight">
-                                                {slot.blocked_reason || "Practise Session"}
+                                                {slot.blocked_reason || (slot.status === 'blocked' ? "Maintenance" : "Practise Session")}
                                             </p>
                                         )}
                                     </div>
