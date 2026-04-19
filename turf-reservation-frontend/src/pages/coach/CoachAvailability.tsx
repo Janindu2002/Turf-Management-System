@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, Save, Loader2, Clock, Briefcase, CheckCircle, RotateCcw } from "lucide-react";
+import { ArrowLeft, Save, Loader2, Clock, Briefcase, CheckCircle, RotateCcw, FileText } from "lucide-react";
 import { ROUTES } from "@/constants";
 import logo from "@/assets/logo.jpeg";
 import { getCoachProfile, updateCoachProfile } from "@/api/coach";
@@ -32,6 +32,7 @@ export default function CoachAvailability() {
     const [endTime, setEndTime] = useState("20:00");
     const [rate, setRate] = useState("1500");
     const [specialization, setSpecialization] = useState("");
+    const [certificatePath, setCertificatePath] = useState("");
 
     // Load existing profile on mount
     useEffect(() => {
@@ -48,6 +49,7 @@ export default function CoachAvailability() {
                 // Pre-fill existing configurations
                 if (profile.specialization) setSpecialization(profile.specialization);
                 if (profile.hourly_rate) setRate(String(profile.hourly_rate));
+                if (profile.certificate) setCertificatePath(profile.certificate);
             })
             .catch(() => {
                 // First-time coach, use safe defaults
@@ -253,6 +255,27 @@ export default function CoachAvailability() {
                             />
                         </div>
                         <p className="text-xs text-gray-400 mt-2">This will be displayed to players booking 1-on-1 sessions.</p>
+                    </div>
+
+                    {/* Certificate View */}
+                    <div className="bg-white p-6 rounded-xl shadow-sm border">
+                        <h3 className="font-bold text-gray-800 mb-4 flex items-center gap-2">
+                            <FileText className="w-4 h-4 text-blue-600" /> Professional Documentation
+                        </h3>
+                        <div className="p-4 bg-blue-50 border border-blue-100 rounded-xl flex items-center justify-between group">
+                            <div className="flex items-center gap-3 text-blue-700">
+                                <FileText className="w-6 h-6" />
+                                <span className="font-bold">Active Coaching Certificate</span>
+                            </div>
+                            <a
+                                href={`${import.meta.env.VITE_API_BASE_URL || "http://localhost:8080"}/${certificatePath}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-xs text-blue-500 font-bold bg-blue-100 px-3 py-1 rounded-full hover:bg-blue-600 hover:text-white transition-all"
+                            >
+                                VIEW FILE
+                            </a>
+                        </div>
                     </div>
 
                     <button

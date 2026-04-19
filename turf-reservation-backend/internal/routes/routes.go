@@ -37,6 +37,9 @@ func SetupRouter(authHandler *handlers.AuthHandler, availabilityHandler *handler
 	}
 	router.Use(cors.New(corsConfig))
 
+	// Static files
+	router.Static("/uploads", "./uploads")
+
 	// Health check endpoint
 	router.GET("/health", func(c *gin.Context) {
 		c.JSON(200, gin.H{

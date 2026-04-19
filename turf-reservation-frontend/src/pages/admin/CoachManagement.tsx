@@ -119,7 +119,7 @@ export default function CoachManagement() {
                                 <h4 className="text-sm font-bold text-gray-900 mb-3">Professional Documentation</h4>
                                 {selectedCoach.certificate ? (
                                     <a
-                                        href={selectedCoach.certificate}
+                                        href={`${import.meta.env.VITE_API_BASE_URL || "http://localhost:8080"}/${selectedCoach.certificate}`}
                                         target="_blank"
                                         rel="noopener noreferrer"
                                         className="w-full p-4 bg-white border border-purple-200 rounded-xl flex items-center justify-between group hover:bg-purple-50 transition-all shadow-sm"
