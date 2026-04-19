@@ -52,7 +52,7 @@ const ResetPassword = () => {
         <div className="min-h-screen bg-slate-50 flex items-center justify-center p-6">
             <div className="max-w-md w-full bg-white rounded-3xl shadow-xl p-10 border border-emerald-50">
                 <div className="text-center mb-10">
-                    <h1 className="text-3xl font-extrabold text-slate-900 mb-2 italic">RESET PASSWORD</h1>
+                    <h2 className="text-3xl font-bold text-center mb-2">Reset Password</h2>
                     <p className="text-slate-600">Enter the verification code sent to your email.</p>
                 </div>
 
