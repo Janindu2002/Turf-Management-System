@@ -66,7 +66,7 @@ func (r *TeamRepository) CreateTeam(team *models.Team) error {
 	if len(team.PlayerIDs) > 0 {
 		updatePlayerQuery := `
 			INSERT INTO players (user_id, team_id, has_team, is_solo_player)
-			VALUES ($1, $2, true, false)
+			VALUES ($1, $2, true, true)
 			ON CONFLICT (user_id) DO UPDATE
 			SET team_id = EXCLUDED.team_id,
 			    has_team = EXCLUDED.has_team,
@@ -143,7 +143,7 @@ func (r *TeamRepository) JoinTeam(teamID, playerUserID int) (*models.Team, error
 
 	upsertPlayerQuery := `
 		INSERT INTO players (user_id, team_id, has_team, is_solo_player)
-		VALUES ($1, $2, true, false)
+		VALUES ($1, $2, true, true)
 		ON CONFLICT (user_id) DO UPDATE
 		SET team_id = EXCLUDED.team_id,
 		    has_team = EXCLUDED.has_team,

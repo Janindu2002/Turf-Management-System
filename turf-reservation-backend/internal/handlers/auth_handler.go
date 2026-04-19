@@ -209,8 +209,10 @@ func (h *AuthHandler) Register(c *gin.Context) {
 		hasTeamStr := c.Request.FormValue("has_team")
 		hasTeam := hasTeamStr == "true"
 		player := &models.Player{
-			UserID:  user.UserID,
-			HasTeam: hasTeam,
+			UserID:       user.UserID,
+			HasTeam:      hasTeam,
+			IsSoloPlayer: !hasTeam, // If they don't have a team, they are a single/solo player
+			IsAvailable:  true,     // Default to available for matches
 		}
 		if err := h.playerRepo.UpsertPlayer(player); err != nil {
 			// We log the error but don't fail the registration as the user is already created
